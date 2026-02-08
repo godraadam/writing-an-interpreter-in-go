@@ -111,7 +111,7 @@ if (5 < 10) {
 	l := New(input)
 
 	for i, tt := range tests {
-		tok := l.scanToken()
+		tok := l.ScanToken()
 		t.Log(tok)
 		if tok.Type != tt.expectedType {
 			t.Fatalf("test [%d] - wrong tokentype, expected %q, got %q",

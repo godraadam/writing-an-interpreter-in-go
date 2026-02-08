@@ -150,7 +150,7 @@ func (l *Lexer) createToken(ttype token.TokenType) token.Token {
 	return token.Token{Type: ttype, Literal: (l.source[l.start:l.current]), Line: l.line}
 }
 
-func (l *Lexer) scanToken() token.Token {
+func (l *Lexer) ScanToken() token.Token {
 	var tok token.Token
 
 	ch := l.skipWhitespace()
@@ -224,10 +224,10 @@ func (l *Lexer) scanToken() token.Token {
 	return tok
 }
 
-func (l *Lexer) scanTokens() []token.Token {
+func (l *Lexer) ScanTokens() []token.Token {
 	var tokens []token.Token
 	for !l.isAtEnd() {
-		l.scanToken()
+		l.ScanToken()
 	}
 	return tokens
 }
