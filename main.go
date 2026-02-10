@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"monkey/lexer"
+	"monkey/parser"
 	"os"
 )
 
@@ -47,4 +49,8 @@ func runRepl() {
 
 func run(source string) {
 	// do the work here
+	l := lexer.New(source)
+	p := parser.New(l)
+	ast := p.Parse()
+	fmt.Println(ast.String())
 }

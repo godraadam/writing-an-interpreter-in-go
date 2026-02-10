@@ -5,6 +5,7 @@ import (
 	"monkey/ast"
 	"monkey/lexer"
 	"monkey/token"
+	"strconv"
 )
 
 type (
@@ -23,6 +24,19 @@ const (
 	CALL
 )
 
+var precedences = map[token.TokenType]int{
+	token.EQ:       EQ,
+	token.NOT_EQ:   EQ,
+	token.LT:       LTGT,
+	token.GT:       LTGT,
+	token.LTE:      LTGT,
+	token.GTE:      LTGT,
+	token.ASTERISK: PROD,
+	token.MINUS:    SUM,
+	token.PLUS:     SUM,
+	token.SLASH:    PROD,
+}
+
 type Parser struct {
 	l      *lexer.Lexer
 	errors []string
@@ -38,7 +52,31 @@ func New(l *lexer.Lexer) *Parser {
 	p := &Parser{l: l, errors: []string{}}
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
+	p.infixParseFns = make(map[token.TokenType]infixParseFn)
+
 	p.registerPrefixFn(token.IDENT, p.parseIdentifier)
+	p.registerPrefixFn(token.NUMBER, p.parseNumberLiteral)
+	p.registerPrefixFn(token.TRUE, p.parseBooleanLiteral)
+	p.registerPrefixFn(token.FALSE, p.parseBooleanLiteral)
+	p.registerPrefixFn(token.BANG, p.parsePrefixExpr)
+	p.registerPrefixFn(token.PLUS, p.parsePrefixExpr)
+	p.registerPrefixFn(token.MINUS, p.parsePrefixExpr)
+	p.registerPrefixFn(token.LPAREN, p.parseGroupedExpr)
+	p.registerPrefixFn(token.IF, p.parseIfExpr)
+
+	p.registerInfixFn(token.MINUS, p.parseInfixExpr)
+	p.registerInfixFn(token.PLUS, p.parseInfixExpr)
+	p.registerInfixFn(token.SLASH, p.parseInfixExpr)
+	p.registerInfixFn(token.ASTERISK, p.parseInfixExpr)
+	p.registerInfixFn(token.EQ, p.parseInfixExpr)
+	p.registerInfixFn(token.NOT_EQ, p.parseInfixExpr)
+	p.registerInfixFn(token.GT, p.parseInfixExpr)
+	p.registerInfixFn(token.GTE, p.parseInfixExpr)
+	p.registerInfixFn(token.LT, p.parseInfixExpr)
+	p.registerInfixFn(token.LTE, p.parseInfixExpr)
+
+	p.advance()
+	p.advance()
 	return p
 }
 
@@ -47,7 +85,7 @@ func (p *Parser) advance() {
 	p.peekToken = p.l.ScanToken()
 }
 
-func (p *Parser) matchPeek(t token.TokenType) bool {
+func (p *Parser) match(t token.TokenType) bool {
 	isMatch := p.peekToken.Type == t
 	if isMatch {
 		p.advance()
@@ -57,8 +95,42 @@ func (p *Parser) matchPeek(t token.TokenType) bool {
 	return isMatch
 }
 
+func (p *Parser) matchOptional(t token.TokenType) bool {
+	isMatch := p.peekToken.Type == t
+	if isMatch {
+		p.advance()
+	}
+	return isMatch
+}
+
+func (p *Parser) currPrecedence() int {
+	if p, ok := precedences[p.currToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
+func (p *Parser) peekPrecedence() int {
+	if p, ok := precedences[p.peekToken.Type]; ok {
+		return p
+	}
+	return LOWEST
+}
+
 func (p *Parser) addError(line int, msg string) {
 	p.errors = append(p.errors, fmt.Sprintf("Error on line %d: %s", line, msg))
+}
+
+func (p *Parser) Errors() []string {
+	return p.errors
+}
+
+func (p *Parser) registerPrefixFn(tokenType token.TokenType, fn prefixParseFn) {
+	p.prefixParseFns[tokenType] = fn
+}
+
+func (p *Parser) registerInfixFn(tokenType token.TokenType, fn infixParseFn) {
+	p.infixParseFns[tokenType] = fn
 }
 
 func (p *Parser) Parse() *ast.Program {
@@ -76,18 +148,6 @@ func (p *Parser) Parse() *ast.Program {
 	return program
 }
 
-func (p *Parser) Errors() []string {
-	return p.errors
-}
-
-func (p *Parser) registerPrefixFn(tokenType token.TokenType, fn prefixParseFn) {
-	p.prefixParseFns[tokenType] = fn
-}
-
-func (p *Parser) registerInfixFn(tokenType token.TokenType, fn infixParseFn) {
-	p.infixParseFns[tokenType] = fn
-}
-
 func (p *Parser) parseStmt() ast.Stmt {
 	switch p.currToken.Type {
 	case token.LET:
@@ -102,39 +162,37 @@ func (p *Parser) parseStmt() ast.Stmt {
 func (p *Parser) parseLetStmt() *ast.LetStmt {
 	stmt := &ast.LetStmt{Token: p.currToken}
 
-	if !p.matchPeek(token.IDENT) {
+	if !p.match(token.IDENT) {
 		return nil
 	}
 	stmt.Name = &ast.Identifier{Value: p.currToken.Literal, Token: p.currToken}
 
-	if !p.matchPeek(token.ASSIGN) {
+	if !p.match(token.ASSIGN) {
 		return nil
 	}
 
-	// TODO parse expression
-	for p.currToken.Type != token.SEMICOLON {
-		p.advance()
-	}
+	p.advance()
+	stmt.Value = p.parseExpr(LOWEST)
+	p.matchOptional(token.SEMICOLON)
+
 	return stmt
 }
 
 func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
 	stmt := &ast.ReturnStmt{Token: p.currToken}
 	p.advance()
-	// TODO parse expression
-	for p.currToken.Type != token.SEMICOLON {
-		p.advance()
-	}
+	stmt.Value = p.parseExpr(LOWEST)
+	p.matchOptional(token.SEMICOLON)
+
 	return stmt
 }
 
 func (p *Parser) parseExprStmt() *ast.ExprStmt {
 	stmt := &ast.ExprStmt{Token: p.currToken}
-	stmt.Expression = p.parseExpr(LOWEST)
+	stmt.Expr = p.parseExpr(LOWEST)
 
-	if p.peekToken.Type == token.SEMICOLON {
-		p.advance()
-	}
+	p.matchOptional(token.SEMICOLON)
+
 	return stmt
 }
 
@@ -144,10 +202,100 @@ func (p *Parser) parseExpr(precedence int) ast.Expr {
 		return nil
 	}
 	leftExpr := prefixFn()
+	for p.peekToken.Type != token.SEMICOLON && precedence < p.peekPrecedence() {
+		infixFn := p.infixParseFns[p.peekToken.Type]
+		if infixFn == nil {
+			return leftExpr
+		}
+		p.advance()
+		leftExpr = infixFn(leftExpr)
+	}
 
 	return leftExpr
 }
 
 func (p *Parser) parseIdentifier() ast.Expr {
 	return &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+}
+
+func (p *Parser) parseNumberLiteral() ast.Expr {
+	number, err := strconv.ParseFloat(p.currToken.Literal, 64)
+	if err != nil {
+		p.addError(p.currToken.Line, fmt.Sprintf("Could not parse number literal %s", p.currToken.Literal))
+	}
+	return &ast.NumberLiteral{Token: p.currToken, Value: number}
+}
+
+func (p *Parser) parseBooleanLiteral() ast.Expr {
+	var value bool
+	switch p.currToken.Type {
+	case token.TRUE:
+		value = true
+	case token.FALSE:
+		value = false
+	default:
+		p.addError(p.currToken.Line, fmt.Sprintf("Could not parse boolean literal %s", p.currToken.Literal))
+
+	}
+	return &ast.BooleanLiteral{Token: p.currToken, Value: value}
+}
+
+func (p *Parser) parsePrefixExpr() ast.Expr {
+	prefixExpr := &ast.PrefixExpr{Token: p.currToken, Operator: p.currToken.Literal}
+	p.advance()
+	prefixExpr.Right = p.parseExpr(PREFIX)
+	return prefixExpr
+}
+
+func (p *Parser) parseInfixExpr(left ast.Expr) ast.Expr {
+	infixExpr := &ast.InfixExpr{Token: p.currToken, Left: left, Operator: p.currToken.Literal}
+	precedence := p.currPrecedence()
+	p.advance()
+	infixExpr.Right = p.parseExpr(precedence)
+	return infixExpr
+}
+
+func (p *Parser) parseGroupedExpr() ast.Expr {
+	p.advance()
+	expr := p.parseExpr(LOWEST)
+	if !p.match(token.RPAREN) {
+		return nil
+	}
+	return expr
+}
+
+func (p *Parser) parseIfExpr() ast.Expr {
+	ifExpr := &ast.IfExpr{Token: p.currToken}
+
+	// TODO: make parantheses optional in if stmts go-style
+	if !p.match(token.LPAREN) {
+		return nil
+	}
+	p.advance()
+	ifExpr.Condition = p.parseExpr(LOWEST)
+
+	if !p.match(token.RPAREN) {
+		return nil
+	}
+
+	ifExpr.Consequence = p.parseBlockStmt()
+	return ifExpr
+}
+
+func (p *Parser) parseBlockStmt() *ast.BlockStmt {
+	blockStmt := &ast.BlockStmt{Token: p.currToken}
+	blockStmt.Stmts = []ast.Stmt{}
+
+	if !p.match(token.LBRACE) {
+		return nil
+	}
+
+	for p.currToken.Type != token.RBRACE && p.currToken.Type != token.EOF {
+		fmt.Println("here")
+		stmt := p.parseStmt()
+		blockStmt.Stmts = append(blockStmt.Stmts, stmt)
+	}
+
+	p.advance()
+	return blockStmt
 }

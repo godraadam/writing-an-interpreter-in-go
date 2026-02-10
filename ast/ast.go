@@ -60,7 +60,7 @@ func (l *LetStmt) String() string {
 	out.WriteString(l.Name.String())
 	out.WriteString(" = ")
 
-	if l != nil {
+	if l.Value != nil {
 		out.WriteString(l.Value.String())
 	}
 	out.WriteString(";")
@@ -90,8 +90,8 @@ func (l *ReturnStmt) String() string {
 
 // Expression statement
 type ExprStmt struct {
-	Token      token.Token
-	Expression Expr
+	Token token.Token
+	Expr  Expr
 }
 
 func (l *ExprStmt) stmtNode() {}
@@ -100,8 +100,8 @@ func (l *ExprStmt) TokenLiteral() string {
 }
 
 func (l *ExprStmt) String() string {
-	if l != nil {
-		return l.Expression.String()
+	if l.Expr != nil {
+		return l.Expr.String()
 	}
 	return ""
 }
@@ -118,4 +118,122 @@ func (i *Identifier) TokenLiteral() string {
 
 func (i *Identifier) String() string {
 	return i.Value
+}
+
+type NumberLiteral struct {
+	Token token.Token
+	Value float64
+}
+
+func (i *NumberLiteral) exprNode() {}
+func (i *NumberLiteral) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *NumberLiteral) String() string {
+	return i.Token.Literal
+}
+
+type BooleanLiteral struct {
+	Token token.Token
+	Value bool
+}
+
+func (i *BooleanLiteral) exprNode() {}
+func (i *BooleanLiteral) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *BooleanLiteral) String() string {
+	return i.Token.Literal
+}
+
+type PrefixExpr struct {
+	Token    token.Token
+	Operator string
+	Right    Expr
+}
+
+func (i *PrefixExpr) exprNode() {}
+func (i *PrefixExpr) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *PrefixExpr) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(i.Operator)
+	out.WriteString(i.Right.String())
+	out.WriteString(")")
+	return out.String()
+}
+
+type InfixExpr struct {
+	Token    token.Token
+	Operator string
+	Left     Expr
+	Right    Expr
+}
+
+func (i *InfixExpr) exprNode() {}
+func (i *InfixExpr) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *InfixExpr) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(i.Left.String())
+	out.WriteString(" ")
+	out.WriteString(i.Operator)
+	out.WriteString(" ")
+	out.WriteString(i.Right.String())
+	out.WriteString(")")
+	return out.String()
+}
+
+type IfExpr struct {
+	Token       token.Token
+	Condition   Expr
+	Consequence *BlockStmt
+	Alternative *BlockStmt
+}
+
+func (i *IfExpr) exprNode() {}
+func (i *IfExpr) TokenLiteral() string {
+	return i.Token.Literal
+}
+
+func (i *IfExpr) String() string {
+	var out bytes.Buffer
+	out.WriteString("if")
+	out.WriteString(i.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(i.Consequence.String())
+	if i.Alternative != nil {
+		out.WriteString(" ")
+		out.WriteString("else ")
+		out.WriteString(i.Alternative.String())
+	}
+	return out.String()
+}
+
+type BlockStmt struct {
+	Token token.Token
+	Stmts []Stmt
+}
+
+func (bs *BlockStmt) exprNode() {}
+func (bs *BlockStmt) TokenLiteral() string {
+	return bs.Token.Literal
+}
+
+func (bs *BlockStmt) String() string {
+	var out bytes.Buffer
+
+	for _, stmt := range bs.Stmts {
+		out.WriteString(stmt.String())
+	}
+
+	return out.String()
 }
