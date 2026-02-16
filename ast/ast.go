@@ -3,6 +3,7 @@ package ast
 import (
 	"bytes"
 	"monkey/token"
+	"strings"
 )
 
 type Node interface {
@@ -234,6 +235,61 @@ func (bs *BlockStmt) String() string {
 	for _, stmt := range bs.Stmts {
 		out.WriteString(stmt.String())
 	}
+
+	return out.String()
+}
+
+type FunctionLiteral struct {
+	Token  token.Token
+	Params []*Identifier
+	Body   *BlockStmt
+}
+
+func (fl *FunctionLiteral) exprNode() {}
+func (fl *FunctionLiteral) TokenLiteral() string {
+	return fl.Token.Literal
+}
+
+func (fl *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range fl.Params {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(fl.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(")")
+	out.WriteString(fl.Body.String())
+
+	return out.String()
+}
+
+type CallExpr struct {
+	Token    token.Token
+	Args     []Expr
+	Function Expr
+}
+
+func (ce *CallExpr) exprNode() {}
+func (ce *CallExpr) TokenLiteral() string {
+	return ce.Token.Literal
+}
+
+func (ce *CallExpr) String() string {
+	var out bytes.Buffer
+
+	params := []string{}
+	for _, p := range ce.Args {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(ce.Function.String())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(")")
 
 	return out.String()
 }

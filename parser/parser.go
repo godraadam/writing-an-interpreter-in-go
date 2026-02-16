@@ -35,6 +35,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.PLUS:     SUM,
 	token.SLASH:    PROD,
+	token.LPAREN:   CALL,
 }
 
 type Parser struct {
@@ -63,6 +64,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.MINUS, p.parsePrefixExpr)
 	p.registerPrefixFn(token.LPAREN, p.parseGroupedExpr)
 	p.registerPrefixFn(token.IF, p.parseIfExpr)
+	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
 
 	p.registerInfixFn(token.MINUS, p.parseInfixExpr)
 	p.registerInfixFn(token.PLUS, p.parseInfixExpr)
@@ -74,6 +76,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfixFn(token.GTE, p.parseInfixExpr)
 	p.registerInfixFn(token.LT, p.parseInfixExpr)
 	p.registerInfixFn(token.LTE, p.parseInfixExpr)
+	p.registerInfixFn(token.LPAREN, p.parseCallExpr)
 
 	p.advance()
 	p.advance()
@@ -279,6 +282,9 @@ func (p *Parser) parseIfExpr() ast.Expr {
 	}
 
 	ifExpr.Consequence = p.parseBlockStmt()
+	if p.matchOptional(token.ELSE) {
+		ifExpr.Alternative = p.parseBlockStmt()
+	}
 	return ifExpr
 }
 
@@ -290,12 +296,85 @@ func (p *Parser) parseBlockStmt() *ast.BlockStmt {
 		return nil
 	}
 
+	p.advance()
 	for p.currToken.Type != token.RBRACE && p.currToken.Type != token.EOF {
-		fmt.Println("here")
 		stmt := p.parseStmt()
-		blockStmt.Stmts = append(blockStmt.Stmts, stmt)
+		if stmt != nil {
+			blockStmt.Stmts = append(blockStmt.Stmts, stmt)
+		}
+		p.advance()
 	}
 
-	p.advance()
 	return blockStmt
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expr {
+	fnLit := &ast.FunctionLiteral{Token: p.currToken}
+
+	fnLit.Params = p.parseFunctionParams()
+	fnLit.Body = p.parseBlockStmt()
+
+	return fnLit
+}
+
+func (p *Parser) parseFunctionParams() []*ast.Identifier {
+	params := []*ast.Identifier{}
+
+	if !p.match(token.LPAREN) {
+		return nil
+	}
+
+	if p.peekToken.Type == token.RPAREN {
+		p.advance()
+		return params
+	}
+	p.advance()
+
+	param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+	params = append(params, param)
+
+	for p.peekToken.Type == token.COMMA {
+		p.advance()
+		p.advance()
+		param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+		params = append(params, param)
+	}
+
+	if !p.match(token.RPAREN) {
+		return nil
+	}
+
+	return params
+}
+
+func (p *Parser) parseCallExpr(function ast.Expr) ast.Expr {
+	exp := &ast.CallExpr{Token: p.currToken, Function: function}
+
+	exp.Args = p.parseCallArgs()
+
+	return exp
+}
+
+func (p *Parser) parseCallArgs() []ast.Expr {
+	args := []ast.Expr{}
+
+	if p.peekToken.Type == token.RPAREN {
+		p.advance()
+		return args
+	}
+	p.advance()
+
+	args = append(args, p.parseExpr(LOWEST))
+
+	for p.peekToken.Type == token.COMMA {
+		p.advance()
+		p.advance()
+		args = append(args, p.parseExpr(LOWEST))
+	}
+
+	if !p.match(token.RPAREN) {
+		return nil
+	}
+
+	return args
 }
