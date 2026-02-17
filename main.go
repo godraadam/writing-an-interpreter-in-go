@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"monkey/eval"
 	"monkey/lexer"
 	"monkey/parser"
 	"os"
@@ -52,5 +53,14 @@ func run(source string) {
 	l := lexer.New(source)
 	p := parser.New(l)
 	ast := p.Parse()
-	fmt.Println(ast.String())
+	if len(p.Errors()) > 0 {
+		for _, err := range p.Errors() {
+			fmt.Println(err)
+		}
+	}
+
+	result := eval.Eval(ast)
+	if result != nil {
+		fmt.Println(result.Inspect())
+	}
 }

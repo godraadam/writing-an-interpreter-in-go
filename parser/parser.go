@@ -89,7 +89,7 @@ func (p *Parser) advance() {
 }
 
 func (p *Parser) match(t token.TokenType) bool {
-	isMatch := p.peekToken.Type == t
+	isMatch := p.check(t)
 	if isMatch {
 		p.advance()
 	} else {
@@ -98,8 +98,12 @@ func (p *Parser) match(t token.TokenType) bool {
 	return isMatch
 }
 
+func (p *Parser) check(t token.TokenType) bool {
+	return p.peekToken.Type == t
+}
+
 func (p *Parser) matchOptional(t token.TokenType) bool {
-	isMatch := p.peekToken.Type == t
+	isMatch := p.check(t)
 	if isMatch {
 		p.advance()
 	}
@@ -324,7 +328,7 @@ func (p *Parser) parseFunctionParams() []*ast.Identifier {
 		return nil
 	}
 
-	if p.peekToken.Type == token.RPAREN {
+	if p.check(token.RPAREN) {
 		p.advance()
 		return params
 	}
@@ -333,7 +337,7 @@ func (p *Parser) parseFunctionParams() []*ast.Identifier {
 	param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
 	params = append(params, param)
 
-	for p.peekToken.Type == token.COMMA {
+	for p.check(token.COMMA) {
 		p.advance()
 		p.advance()
 		param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
@@ -358,7 +362,7 @@ func (p *Parser) parseCallExpr(function ast.Expr) ast.Expr {
 func (p *Parser) parseCallArgs() []ast.Expr {
 	args := []ast.Expr{}
 
-	if p.peekToken.Type == token.RPAREN {
+	if p.check(token.RPAREN) {
 		p.advance()
 		return args
 	}
@@ -366,7 +370,7 @@ func (p *Parser) parseCallArgs() []ast.Expr {
 
 	args = append(args, p.parseExpr(LOWEST))
 
-	for p.peekToken.Type == token.COMMA {
+	for p.check(token.COMMA) {
 		p.advance()
 		p.advance()
 		args = append(args, p.parseExpr(LOWEST))
