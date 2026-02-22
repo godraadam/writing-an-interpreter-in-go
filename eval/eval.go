@@ -23,13 +23,25 @@ func error(format string, a ...any) *object.ErrorObj {
 	return &object.ErrorObj{Message: fmt.Sprintf(format, a...)}
 }
 
-func Eval(node ast.Node) object.Object {
+func Eval(node ast.Node, env *object.Environment) object.Object {
 	switch node := node.(type) {
 	// Statements
 	case *ast.Program:
-		return evalProgram(node.Stmts)
+		return evalProgram(node.Stmts, env)
 	case *ast.ExprStmt:
-		return Eval(node.Expr)
+		return Eval(node.Expr, env)
+	case *ast.LetStmt:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Set(node.Name.Value, val)
+	case *ast.ReturnStmt:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		return &object.ReturnObj{Value: val}
 
 	// Expressions
 	case *ast.NumberLiteral:
@@ -39,40 +51,34 @@ func Eval(node ast.Node) object.Object {
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
 	case *ast.PrefixExpr:
-		right := Eval(node.Right)
+		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpr(node.Operator, right)
 	case *ast.InfixExpr:
-		left := Eval(node.Left)
+		left := Eval(node.Left, env)
 		if isError(left) {
 			return left
 		}
-		right := Eval(node.Right)
+		right := Eval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpr(node.Operator, left, right)
 	case *ast.BlockStmt:
-		return evalBlockStmt(node)
+		return evalBlockStmt(node, env)
 	case *ast.IfExpr:
-		return evalIfExpr(node)
-	case *ast.ReturnStmt:
-		val := Eval(node.Value)
-		if isError(val) {
-			return val
-		}
-		return &object.ReturnObj{Value: val}
+		return evalIfExpr(node, env)
 	}
 
 	return nil
 }
 
-func evalProgram(stmts []ast.Stmt) object.Object {
+func evalProgram(stmts []ast.Stmt, env *object.Environment) object.Object {
 	var result object.Object
 	for _, stmt := range stmts {
-		result = Eval(stmt)
+		result = Eval(stmt, env)
 		switch result := result.(type) {
 		case *object.ReturnObj:
 			return result.Value
@@ -160,24 +166,24 @@ func evalNumberInfixExpr(op string, _left object.Object, _right object.Object) o
 	}
 }
 
-func evalIfExpr(ie *ast.IfExpr) object.Object {
-	cond := Eval(ie.Condition)
+func evalIfExpr(ie *ast.IfExpr, env *object.Environment) object.Object {
+	cond := Eval(ie.Condition, env)
 	if isError(cond) {
 		return cond
 	}
 	if truthy(cond) {
-		return Eval(ie.Consequence)
+		return Eval(ie.Consequence, env)
 	} else if ie.Alternative != nil {
-		return Eval((ie.Alternative))
+		return Eval(ie.Alternative, env)
 	}
 	return NIL
 }
 
-func evalBlockStmt(bs *ast.BlockStmt) object.Object {
+func evalBlockStmt(bs *ast.BlockStmt, env *object.Environment) object.Object {
 	var result object.Object
 
 	for _, stmt := range bs.Stmts {
-		result = Eval(stmt)
+		result = Eval(stmt, env)
 		if result != nil && (result.Type() == object.RETURN_OBJ || result.Type() == object.ERROR_OBJ) {
 			return result
 		}

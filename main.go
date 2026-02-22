@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"monkey/eval"
 	"monkey/lexer"
+	"monkey/object"
 	"monkey/parser"
 	"os"
 )
@@ -58,8 +59,9 @@ func run(source string) {
 			fmt.Println(err)
 		}
 	}
-
-	result := eval.Eval(ast)
+	env := object.NewEnvironment()
+	// add env vars here I guess
+	result := eval.Eval(ast, env)
 	if result != nil {
 		fmt.Println(result.Inspect())
 	}
