@@ -12,6 +12,7 @@ type Object interface {
 const (
 	NUMBER_OBJ  = "NUMBER"
 	BOOLEAN_OBJ = "BOOLEAN"
+	STR_OBJ     = "STRING"
 	NIL_OBJ     = "NULL"
 )
 
@@ -37,6 +38,18 @@ func (b *Boolean) Inspect() string {
 
 func (n *Boolean) Type() ObjectType {
 	return BOOLEAN_OBJ
+}
+
+type String struct {
+	Value string
+}
+
+func (s *String) Inspect() string {
+	return fmt.Sprintf("%s", s.Value)
+}
+
+func (n *String) Type() ObjectType {
+	return STR_OBJ
 }
 
 type Nil struct{}

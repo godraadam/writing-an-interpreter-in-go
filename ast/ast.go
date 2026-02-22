@@ -149,6 +149,24 @@ func (i *BooleanLiteral) String() string {
 	return i.Token.Literal
 }
 
+type StringLiteral struct {
+	Token token.Token
+	Value string
+}
+
+func (sl *StringLiteral) exprNode() {}
+func (sl *StringLiteral) TokenLiteral() string {
+	return sl.Token.Literal
+}
+
+func (sl *StringLiteral) String() string {
+	var out bytes.Buffer
+	out.WriteString("\"")
+	out.WriteString(sl.Value)
+	out.WriteString("\"")
+	return out.String()
+}
+
 type PrefixExpr struct {
 	Token    token.Token
 	Operator string

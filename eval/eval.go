@@ -31,6 +31,8 @@ func Eval(node ast.Node) object.Object {
 		return &object.Number{Value: node.Value}
 	case *ast.BooleanLiteral:
 		return nativeBoolToMonkeyBool(node.Value)
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
 	case *ast.PrefixExpr:
 		right := Eval(node.Right)
 		return evalPrefixExpr(node.Operator, right)
@@ -38,6 +40,10 @@ func Eval(node ast.Node) object.Object {
 		left := Eval(node.Left)
 		right := Eval(node.Right)
 		return evalInfixExpr(node.Operator, left, right)
+	case *ast.BlockStmt:
+		return evalStmts(node.Stmts)
+	case *ast.IfExpr:
+		return evalIfExpr(node)
 	}
 
 	return nil
@@ -124,4 +130,28 @@ func evalNumberInfixExpr(op string, _left object.Object, _right object.Object) o
 	default:
 		return NIL
 	}
+}
+
+func evalIfExpr(ie *ast.IfExpr) object.Object {
+	cond := Eval(ie.Condition)
+	if truthy(cond) {
+		return Eval(ie.Consequence)
+	} else if ie.Alternative != nil {
+		return Eval((ie.Alternative))
+	}
+	return NIL
+}
+
+func truthy(obj object.Object) bool {
+	switch obj {
+	case NIL:
+		return false
+	case FALSE:
+		return false
+	default:
+		if obj.Type() == object.NUMBER_OBJ {
+			return obj.(*object.Number).Value != 0
+		}
+	}
+	return true
 }
