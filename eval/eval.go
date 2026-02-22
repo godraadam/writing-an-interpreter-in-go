@@ -22,7 +22,7 @@ func Eval(node ast.Node) object.Object {
 	switch node := node.(type) {
 	// Statements
 	case *ast.Program:
-		return evalStmts(node.Stmts)
+		return evalProgram(node.Stmts)
 	case *ast.ExprStmt:
 		return Eval(node.Expr)
 
@@ -41,18 +41,24 @@ func Eval(node ast.Node) object.Object {
 		right := Eval(node.Right)
 		return evalInfixExpr(node.Operator, left, right)
 	case *ast.BlockStmt:
-		return evalStmts(node.Stmts)
+		return evalBlockStmt(node)
 	case *ast.IfExpr:
 		return evalIfExpr(node)
+	case *ast.ReturnStmt:
+		val := Eval(node.Value)
+		return &object.ReturnObj{Value: val}
 	}
 
 	return nil
 }
 
-func evalStmts(stmts []ast.Stmt) object.Object {
+func evalProgram(stmts []ast.Stmt) object.Object {
 	var result object.Object
 	for _, stmt := range stmts {
 		result = Eval(stmt)
+		if returnValue, ok := result.(*object.ReturnObj); ok {
+			return returnValue.Value
+		}
 	}
 	return result
 }
@@ -140,6 +146,18 @@ func evalIfExpr(ie *ast.IfExpr) object.Object {
 		return Eval((ie.Alternative))
 	}
 	return NIL
+}
+
+func evalBlockStmt(bs *ast.BlockStmt) object.Object {
+	var result object.Object
+
+	for _, stmt := range bs.Stmts {
+		result = Eval(stmt)
+		if result != nil && result.Type() == object.RETURN_OBJ {
+			return result
+		}
+	}
+	return result
 }
 
 func truthy(obj object.Object) bool {

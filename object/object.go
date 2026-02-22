@@ -13,6 +13,7 @@ const (
 	NUMBER_OBJ  = "NUMBER"
 	BOOLEAN_OBJ = "BOOLEAN"
 	STR_OBJ     = "STRING"
+	RETURN_OBJ  = "RETURN"
 	NIL_OBJ     = "NULL"
 )
 
@@ -45,7 +46,7 @@ type String struct {
 }
 
 func (s *String) Inspect() string {
-	return fmt.Sprintf("%s", s.Value)
+	return s.Value
 }
 
 func (n *String) Type() ObjectType {
@@ -60,4 +61,16 @@ func (b *Nil) Inspect() string {
 
 func (n *Nil) Type() ObjectType {
 	return NIL_OBJ
+}
+
+type ReturnObj struct {
+	Value Object
+}
+
+func (obj *ReturnObj) Inspect() string {
+	return obj.Value.Inspect()
+}
+
+func (n *ReturnObj) Type() ObjectType {
+	return RETURN_OBJ
 }
