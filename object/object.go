@@ -15,6 +15,7 @@ const (
 	STR_OBJ     = "STRING"
 	RETURN_OBJ  = "RETURN"
 	NIL_OBJ     = "NULL"
+	ERROR_OBJ   = "ERROR"
 )
 
 type Number struct {
@@ -71,6 +72,18 @@ func (obj *ReturnObj) Inspect() string {
 	return obj.Value.Inspect()
 }
 
-func (n *ReturnObj) Type() ObjectType {
+func (obj *ReturnObj) Type() ObjectType {
 	return RETURN_OBJ
+}
+
+type ErrorObj struct {
+	Message string
+}
+
+func (err *ErrorObj) Inspect() string {
+	return "ERROR: " + err.Message
+}
+
+func (err *ErrorObj) Type() ObjectType {
+	return ERROR_OBJ
 }

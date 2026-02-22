@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"fmt"
 	"monkey/ast"
 	"monkey/object"
 )
@@ -16,6 +17,10 @@ func nativeBoolToMonkeyBool(value bool) object.Object {
 		return TRUE
 	}
 	return FALSE
+}
+
+func error(format string, a ...any) *object.ErrorObj {
+	return &object.ErrorObj{Message: fmt.Sprintf(format, a...)}
 }
 
 func Eval(node ast.Node) object.Object {
@@ -35,10 +40,19 @@ func Eval(node ast.Node) object.Object {
 		return &object.String{Value: node.Value}
 	case *ast.PrefixExpr:
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalPrefixExpr(node.Operator, right)
 	case *ast.InfixExpr:
 		left := Eval(node.Left)
+		if isError(left) {
+			return left
+		}
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalInfixExpr(node.Operator, left, right)
 	case *ast.BlockStmt:
 		return evalBlockStmt(node)
@@ -46,6 +60,9 @@ func Eval(node ast.Node) object.Object {
 		return evalIfExpr(node)
 	case *ast.ReturnStmt:
 		val := Eval(node.Value)
+		if isError(val) {
+			return val
+		}
 		return &object.ReturnObj{Value: val}
 	}
 
@@ -56,8 +73,11 @@ func evalProgram(stmts []ast.Stmt) object.Object {
 	var result object.Object
 	for _, stmt := range stmts {
 		result = Eval(stmt)
-		if returnValue, ok := result.(*object.ReturnObj); ok {
-			return returnValue.Value
+		switch result := result.(type) {
+		case *object.ReturnObj:
+			return result.Value
+		case *object.ErrorObj:
+			return result
 		}
 	}
 	return result
@@ -70,7 +90,7 @@ func evalPrefixExpr(op string, operand object.Object) object.Object {
 	case "-":
 		return evalMinusOpExpr(operand)
 	default:
-		return NIL
+		return error("Unknown operator %s %s", op, operand.Type())
 	}
 }
 
@@ -89,7 +109,7 @@ func evalBangOpExpr(operand object.Object) object.Object {
 
 func evalMinusOpExpr(operand object.Object) object.Object {
 	if operand.Type() != object.NUMBER_OBJ {
-		return NIL
+		return error("Unknown operator %s %s", "-", operand.Type())
 	}
 	value := operand.(*object.Number).Value
 	return &object.Number{Value: -value}
@@ -97,14 +117,16 @@ func evalMinusOpExpr(operand object.Object) object.Object {
 
 func evalInfixExpr(op string, left object.Object, right object.Object) object.Object {
 	switch {
-	case left.Type() == object.NUMBER_OBJ && right.Type() == object.NUMBER_OBJ:
+	case left.Type() != right.Type():
+		return error("Type mismatch %s %s %s", left.Type(), op, right.Type())
+	case left.Type() == object.NUMBER_OBJ:
 		return evalNumberInfixExpr(op, left, right)
 	case op == "==":
 		return nativeBoolToMonkeyBool(left == right)
 	case op == "!=":
 		return nativeBoolToMonkeyBool(left != right)
 	default:
-		return NIL
+		return error("Unknown operator %s %s %s", left.Type(), op, right.Type())
 	}
 }
 
@@ -134,12 +156,15 @@ func evalNumberInfixExpr(op string, _left object.Object, _right object.Object) o
 	case ">=":
 		return nativeBoolToMonkeyBool(left >= right)
 	default:
-		return NIL
+		return error("Unknown operator %s %s %s", _left.Type(), op, _right.Type())
 	}
 }
 
 func evalIfExpr(ie *ast.IfExpr) object.Object {
 	cond := Eval(ie.Condition)
+	if isError(cond) {
+		return cond
+	}
 	if truthy(cond) {
 		return Eval(ie.Consequence)
 	} else if ie.Alternative != nil {
@@ -153,7 +178,7 @@ func evalBlockStmt(bs *ast.BlockStmt) object.Object {
 
 	for _, stmt := range bs.Stmts {
 		result = Eval(stmt)
-		if result != nil && result.Type() == object.RETURN_OBJ {
+		if result != nil && (result.Type() == object.RETURN_OBJ || result.Type() == object.ERROR_OBJ) {
 			return result
 		}
 	}
@@ -172,4 +197,8 @@ func truthy(obj object.Object) bool {
 		}
 	}
 	return true
+}
+
+func isError(obj object.Object) bool {
+	return obj != nil && obj.Type() == object.ERROR_OBJ
 }
