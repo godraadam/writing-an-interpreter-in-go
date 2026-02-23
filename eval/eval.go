@@ -42,6 +42,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return val
 		}
 		return &object.ReturnObj{Value: val}
+	case *ast.PrintStmt:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		fmt.Println(val.Inspect())
 
 	// Expressions
 	case *ast.NumberLiteral:

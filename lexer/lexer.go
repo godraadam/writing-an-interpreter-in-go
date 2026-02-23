@@ -172,7 +172,7 @@ func (l *Lexer) ScanToken() token.Token {
 
 		}
 	case '&':
-		if l.match('|') {
+		if l.match('&') {
 			tok = l.createToken(token.AND)
 		} else {
 			reportError(l.line, fmt.Sprintf("Illegal token %q", ch))

@@ -1,8 +1,8 @@
 package object
 
 type Environment struct {
-	outer *Environment
-	store map[string]Object
+	parent *Environment
+	store  map[string]Object
 }
 
 func NewEnvironment() *Environment {
@@ -12,14 +12,14 @@ func NewEnvironment() *Environment {
 
 func NewSubEnvironment(parent *Environment) *Environment {
 	env := NewEnvironment()
-	env.outer = env.outer
+	env.parent = parent
 	return env
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
 	obj, ok := e.store[name]
-	if !ok && e.outer != nil {
-		obj, ok = e.outer.Get(name)
+	if !ok && e.parent != nil {
+		obj, ok = e.parent.Get(name)
 	}
 	return obj, ok
 }

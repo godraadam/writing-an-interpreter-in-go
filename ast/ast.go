@@ -89,6 +89,26 @@ func (l *ReturnStmt) String() string {
 	return out.String()
 }
 
+type PrintStmt struct {
+	Token token.Token
+	Value Expr
+}
+
+func (ps *PrintStmt) stmtNode() {}
+func (ps *PrintStmt) TokenLiteral() string {
+	return ps.Token.Literal
+}
+
+func (ps *PrintStmt) String() string {
+	var out bytes.Buffer
+	out.WriteString(ps.TokenLiteral() + " ")
+	if ps.Value != nil {
+		out.WriteString(ps.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 // Expression statement
 type ExprStmt struct {
 	Token token.Token

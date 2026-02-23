@@ -168,6 +168,8 @@ func (p *Parser) parseStmt() ast.Stmt {
 		return p.parseLetStmt()
 	case token.RETURN:
 		return p.parseReturnStmt()
+	case token.PRINT:
+		return p.parsePrintStmt()
 	default:
 		return p.parseExprStmt()
 	}
@@ -194,6 +196,15 @@ func (p *Parser) parseLetStmt() *ast.LetStmt {
 
 func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
 	stmt := &ast.ReturnStmt{Token: p.currToken}
+	p.advance()
+	stmt.Value = p.parseExpr(LOWEST)
+	p.matchOptional(token.SEMICOLON)
+
+	return stmt
+}
+
+func (p *Parser) parsePrintStmt() *ast.PrintStmt {
+	stmt := &ast.PrintStmt{Token: p.currToken}
 	p.advance()
 	stmt.Value = p.parseExpr(LOWEST)
 	p.matchOptional(token.SEMICOLON)
