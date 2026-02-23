@@ -29,11 +29,13 @@ func runFile(pathToScript string) {
 		os.Exit(1)
 	}
 	source := string(bytes[:])
-	run(source)
+	env := object.NewEnvironment()
+	run(source, env)
 }
 
 func runRepl() {
 	scanner := bufio.NewScanner(os.Stdin)
+	env := object.NewEnvironment()
 	for {
 		fmt.Printf(">> ")
 		scanned := scanner.Scan()
@@ -44,12 +46,12 @@ func runRepl() {
 		if source == "exit" {
 			break
 		}
-		run(source)
+		run(source, env)
 
 	}
 }
 
-func run(source string) {
+func run(source string, env *object.Environment) {
 	// do the work here
 	l := lexer.New(source)
 	p := parser.New(l)
@@ -59,7 +61,6 @@ func run(source string) {
 			fmt.Println(err)
 		}
 	}
-	env := object.NewEnvironment()
 	// add env vars here I guess
 	result := eval.Eval(ast, env)
 	if result != nil {

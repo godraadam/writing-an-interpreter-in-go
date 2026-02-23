@@ -70,6 +70,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalBlockStmt(node, env)
 	case *ast.IfExpr:
 		return evalIfExpr(node, env)
+	case *ast.Identifier:
+		return evalIdentifier(node, env)
 	}
 
 	return nil
@@ -189,6 +191,14 @@ func evalBlockStmt(bs *ast.BlockStmt, env *object.Environment) object.Object {
 		}
 	}
 	return result
+}
+
+func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object {
+	val, ok := env.Get(node.Value)
+	if !ok {
+		return error("Identifier %s not found", node.Value)
+	}
+	return val
 }
 
 func truthy(obj object.Object) bool {
