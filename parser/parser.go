@@ -16,6 +16,8 @@ type (
 const (
 	_ int = iota
 	LOWEST
+	OR
+	AND
 	EQ
 	LTGT
 	SUM
@@ -36,6 +38,8 @@ var precedences = map[token.TokenType]int{
 	token.PLUS:     SUM,
 	token.SLASH:    PROD,
 	token.LPAREN:   CALL,
+	token.AND:      AND,
+	token.OR:       OR,
 }
 
 type Parser struct {
@@ -68,6 +72,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
 
 	p.registerInfixFn(token.MINUS, p.parseInfixExpr)
+	p.registerInfixFn(token.OR, p.parseInfixExpr)
+	p.registerInfixFn(token.AND, p.parseInfixExpr)
 	p.registerInfixFn(token.PLUS, p.parseInfixExpr)
 	p.registerInfixFn(token.SLASH, p.parseInfixExpr)
 	p.registerInfixFn(token.ASTERISK, p.parseInfixExpr)

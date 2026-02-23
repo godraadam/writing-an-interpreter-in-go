@@ -36,6 +36,9 @@ const (
 	LTE    = ">="
 	GTE    = "<="
 
+	OR  = "||"
+	AND = "&&"
+
 	// keywords
 	FUNCTION = "FUNCTION"
 	LET      = "LET"

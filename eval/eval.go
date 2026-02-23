@@ -145,6 +145,10 @@ func evalInfixExpr(op string, left object.Object, right object.Object) object.Ob
 		return nativeBoolToMonkeyBool(left == right)
 	case op == "!=":
 		return nativeBoolToMonkeyBool(left != right)
+	case op == "||":
+		return nativeBoolToMonkeyBool(truthy(left) || truthy(right))
+	case op == "&&":
+		return nativeBoolToMonkeyBool(truthy(left) && truthy(right))
 	default:
 		return error("Unknown operator %s %s %s", left.Type(), op, right.Type())
 	}

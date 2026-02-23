@@ -164,6 +164,20 @@ func (l *Lexer) ScanToken() token.Token {
 		}
 	case ';':
 		tok = l.createToken(token.SEMICOLON)
+	case '|':
+		if l.match('|') {
+			tok = l.createToken(token.OR)
+		} else {
+			reportError(l.line, fmt.Sprintf("Illegal token %q", ch))
+
+		}
+	case '&':
+		if l.match('|') {
+			tok = l.createToken(token.AND)
+		} else {
+			reportError(l.line, fmt.Sprintf("Illegal token %q", ch))
+
+		}
 	case '(':
 		tok = l.createToken(token.LPAREN)
 	case ')':
