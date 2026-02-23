@@ -187,6 +187,30 @@ func (sl *StringLiteral) String() string {
 	return out.String()
 }
 
+type ArrayLiteral struct {
+	Token    token.Token
+	Elements []Expr
+}
+
+func (al *ArrayLiteral) exprNode() {}
+func (al *ArrayLiteral) TokenLiteral() string {
+	return al.Token.Literal
+}
+
+func (al *ArrayLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("[")
+	elements := []string{}
+	for _, el := range al.Elements {
+		elements = append(elements, el.String())
+	}
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+
+	return out.String()
+}
+
 type PrefixExpr struct {
 	Token    token.Token
 	Operator string

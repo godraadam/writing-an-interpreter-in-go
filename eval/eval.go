@@ -56,6 +56,12 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return nativeBoolToMonkeyBool(node.Value)
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
+	case *ast.ArrayLiteral:
+		elems := evalExprs(node.Elements, env)
+		if len(elems) == 1 && isError(elems[0]) {
+			return elems[0]
+		}
+		return &object.ArrayObj{Elements: elems}
 	case *ast.FunctionLiteral:
 		return &object.FunctionObj{Params: node.Params, Body: node.Body, Env: env}
 	case *ast.PrefixExpr:

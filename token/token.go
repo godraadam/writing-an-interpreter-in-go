@@ -26,6 +26,8 @@ const (
 	RPAREN    = ")"
 	LBRACE    = "{"
 	RBRACE    = "}"
+	LBRACKET  = "["
+	RBRACKET  = "]"
 	BANG      = "!"
 	QUOTES    = "\""
 

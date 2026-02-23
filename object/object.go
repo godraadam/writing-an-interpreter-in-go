@@ -22,6 +22,7 @@ const (
 	NIL_OBJ      = "NULL"
 	ERROR_OBJ    = "ERROR"
 	FUNCTION_OBJ = "FUNCTION"
+	ARRAY_OBJ    = "ARRAY"
 )
 
 type Number struct {
@@ -29,7 +30,7 @@ type Number struct {
 }
 
 func (n *Number) Inspect() string {
-	return fmt.Sprintf("%f", n.Value)
+	return fmt.Sprintf("%.17g", n.Value)
 }
 
 func (n *Number) Type() ObjectType {
@@ -92,6 +93,28 @@ func (err *ErrorObj) Inspect() string {
 
 func (err *ErrorObj) Type() ObjectType {
 	return ERROR_OBJ
+}
+
+type ArrayObj struct {
+	Elements []Object
+}
+
+func (arr *ArrayObj) Inspect() string {
+	var out bytes.Buffer
+
+	out.WriteString("[")
+	elements := []string{}
+	for _, el := range arr.Elements {
+		elements = append(elements, el.Inspect())
+	}
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+
+	return out.String()
+}
+
+func (err *ArrayObj) Type() ObjectType {
+	return ARRAY_OBJ
 }
 
 type FunctionObj struct {

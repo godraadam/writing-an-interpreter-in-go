@@ -70,6 +70,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.LPAREN, p.parseGroupedExpr)
 	p.registerPrefixFn(token.IF, p.parseIfExpr)
 	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
+	p.registerPrefixFn(token.LBRACKET, p.parseArrayLiteral)
 
 	p.registerInfixFn(token.MINUS, p.parseInfixExpr)
 	p.registerInfixFn(token.OR, p.parseInfixExpr)
@@ -343,6 +344,37 @@ func (p *Parser) parseFunctionLiteral() ast.Expr {
 	return fnLit
 }
 
+func (p *Parser) parseArrayLiteral() ast.Expr {
+	array := &ast.ArrayLiteral{Token: p.currToken}
+
+	array.Elements = p.parseExprList(token.RBRACKET)
+
+	return array
+}
+
+func (p *Parser) parseExprList(end token.TokenType) []ast.Expr {
+	list := []ast.Expr{}
+
+	if p.check(end) {
+		p.advance()
+		return list
+	}
+
+	p.advance()
+	list = append(list, p.parseExpr(LOWEST))
+
+	for p.check(token.COMMA) {
+		p.advance()
+		p.advance()
+		list = append(list, p.parseExpr(LOWEST))
+	}
+
+	if !p.match(end) {
+		return nil
+	}
+	return list
+}
+
 func (p *Parser) parseFunctionParams() []*ast.Identifier {
 	params := []*ast.Identifier{}
 
@@ -376,31 +408,7 @@ func (p *Parser) parseFunctionParams() []*ast.Identifier {
 func (p *Parser) parseCallExpr(function ast.Expr) ast.Expr {
 	exp := &ast.CallExpr{Token: p.currToken, Function: function}
 
-	exp.Args = p.parseCallArgs()
+	exp.Args = p.parseExprList(token.RPAREN)
 
 	return exp
-}
-
-func (p *Parser) parseCallArgs() []ast.Expr {
-	args := []ast.Expr{}
-
-	if p.check(token.RPAREN) {
-		p.advance()
-		return args
-	}
-	p.advance()
-
-	args = append(args, p.parseExpr(LOWEST))
-
-	for p.check(token.COMMA) {
-		p.advance()
-		p.advance()
-		args = append(args, p.parseExpr(LOWEST))
-	}
-
-	if !p.match(token.RPAREN) {
-		return nil
-	}
-
-	return args
 }

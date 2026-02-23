@@ -190,6 +190,10 @@ func (l *Lexer) ScanToken() token.Token {
 		tok = l.createToken(token.MINUS)
 	case '{':
 		tok = l.createToken(token.LBRACE)
+	case '[':
+		tok = l.createToken(token.LBRACKET)
+	case ']':
+		tok = l.createToken(token.RBRACKET)
 	case '}':
 		tok = l.createToken(token.RBRACE)
 	case '"':
