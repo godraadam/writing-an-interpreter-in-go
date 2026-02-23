@@ -24,6 +24,7 @@ const (
 	PROD
 	PREFIX
 	CALL
+	INDEX
 )
 
 var precedences = map[token.TokenType]int{
@@ -40,6 +41,7 @@ var precedences = map[token.TokenType]int{
 	token.LPAREN:   CALL,
 	token.AND:      AND,
 	token.OR:       OR,
+	token.LBRACKET: INDEX,
 }
 
 type Parser struct {
@@ -85,6 +87,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfixFn(token.LT, p.parseInfixExpr)
 	p.registerInfixFn(token.LTE, p.parseInfixExpr)
 	p.registerInfixFn(token.LPAREN, p.parseCallExpr)
+	p.registerInfixFn(token.LBRACKET, p.parseIndexExpr)
 
 	p.advance()
 	p.advance()
@@ -410,5 +413,17 @@ func (p *Parser) parseCallExpr(function ast.Expr) ast.Expr {
 
 	exp.Args = p.parseExprList(token.RPAREN)
 
+	return exp
+}
+
+func (p *Parser) parseIndexExpr(left ast.Expr) ast.Expr {
+	exp := &ast.IndexExpr{Token: p.currToken, Left: left}
+
+	p.advance()
+	exp.Index = p.parseExpr(LOWEST)
+
+	if !p.match(token.RBRACKET) {
+		return nil
+	}
 	return exp
 }

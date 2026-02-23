@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"math"
 	"monkey/ast"
 	"monkey/object"
 )
@@ -64,6 +65,16 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.ArrayObj{Elements: elems}
 	case *ast.FunctionLiteral:
 		return &object.FunctionObj{Params: node.Params, Body: node.Body, Env: env}
+	case *ast.IndexExpr:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpr(left, index)
 	case *ast.PrefixExpr:
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -252,6 +263,29 @@ func evalFuncionCall(fn object.Object, args []object.Object) object.Object {
 	fnEnv := createFnScope(function, args)
 	evaluated := Eval(function.Body, fnEnv)
 	return unwrapReturnValue(evaluated)
+}
+
+func evalIndexExpr(left object.Object, index object.Object) object.Object {
+	switch left.Type() {
+	case object.ARRAY_OBJ:
+		return evalArrayIndexExpr(left, index)
+	default:
+		return error("Index operator not allowed on type %s", left.Type())
+	}
+}
+
+func evalArrayIndexExpr(left object.Object, index object.Object) object.Object {
+	arrayObj := left.(*object.ArrayObj)
+	idx := index.(*object.Number).Value
+	max := float64(len(arrayObj.Elements) - 1)
+	if math.Trunc(idx) != idx {
+		return error("Invalid index expression %s", index.Inspect())
+	}
+	if idx < 0 || idx >= max {
+		return error("Index expression out of bounds %s", index.Inspect())
+
+	}
+	return arrayObj.Elements[int64(idx)]
 }
 
 func createFnScope(fn *object.FunctionObj, args []object.Object) *object.Environment {

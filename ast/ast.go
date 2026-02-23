@@ -355,3 +355,25 @@ func (ce *CallExpr) String() string {
 
 	return out.String()
 }
+
+type IndexExpr struct {
+	Token token.Token
+	Left  Expr
+	Index Expr
+}
+
+func (ie *IndexExpr) exprNode() {}
+func (ie *IndexExpr) TokenLiteral() string {
+	return ie.Token.Literal
+}
+
+func (ie *IndexExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ie.Left.String())
+	out.WriteString("[")
+	out.WriteString(ie.Index.String())
+	out.WriteString("]")
+
+	return out.String()
+}
