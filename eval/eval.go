@@ -50,6 +50,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return nativeBoolToMonkeyBool(node.Value)
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
+	case *ast.FunctionLiteral:
+		return &object.FunctionObj{Params: node.Params, Body: node.Body, Env: env}
 	case *ast.PrefixExpr:
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -72,6 +74,16 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalIfExpr(node, env)
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
+	case *ast.CallExpr:
+		function := Eval(node.Function, env)
+		if isError(function) {
+			return function
+		}
+		args := evalExprs(node.Args, env)
+		if len(args) == 1 && isError(args[0]) {
+			return args[0]
+		}
+		return evalFuncionCall(function, args)
 	}
 
 	return nil
@@ -199,6 +211,46 @@ func evalIdentifier(node *ast.Identifier, env *object.Environment) object.Object
 		return error("Identifier %s not found", node.Value)
 	}
 	return val
+}
+
+func evalExprs(exprs []ast.Expr, env *object.Environment) []object.Object {
+	var result []object.Object
+
+	for _, expr := range exprs {
+		evaluated := Eval(expr, env)
+		if isError(evaluated) {
+			return []object.Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+
+	return result
+}
+
+func evalFuncionCall(fn object.Object, args []object.Object) object.Object {
+	function, ok := fn.(*object.FunctionObj)
+	if !ok {
+		return error("%s is not a function!", fn.Inspect())
+	}
+
+	fnEnv := createFnScope(function, args)
+	evaluated := Eval(function.Body, fnEnv)
+	return unwrapReturnValue(evaluated)
+}
+
+func createFnScope(fn *object.FunctionObj, args []object.Object) *object.Environment {
+	subEnv := object.NewSubEnvironment(fn.Env)
+	for idx, param := range fn.Params {
+		subEnv.Set(param.Value, args[idx])
+	}
+	return subEnv
+}
+
+func unwrapReturnValue(obj object.Object) object.Object {
+	if rv, ok := obj.(*object.ReturnObj); ok {
+		return rv.Value
+	}
+	return obj
 }
 
 func truthy(obj object.Object) bool {
