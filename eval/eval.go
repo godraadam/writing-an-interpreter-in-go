@@ -43,6 +43,18 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return val
 		}
 		return &object.ReturnObj{Value: val}
+	case *ast.AssingmentStmt:
+		val := Eval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		_, ok := env.Get(node.Name.Value)
+		if !ok {
+			return error("Variable %s not found", node.Name.Value)
+		}
+		// we could also do mutability checks or type checks here
+		env.Set(node.Name.Value, val)
+		return val
 	case *ast.PrintStmt:
 		val := Eval(node.Value, env)
 		if isError(val) {

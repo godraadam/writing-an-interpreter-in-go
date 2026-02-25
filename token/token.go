@@ -22,6 +22,7 @@ const (
 
 	COMMA     = ","
 	SEMICOLON = ";"
+	COLON     = ":"
 	LPAREN    = "("
 	RPAREN    = ")"
 	LBRACE    = "{"
@@ -30,6 +31,7 @@ const (
 	RBRACKET  = "]"
 	BANG      = "!"
 	QUOTES    = "\""
+	ELLIPSIS  = "..."
 
 	LT     = "<"
 	GT     = ">"

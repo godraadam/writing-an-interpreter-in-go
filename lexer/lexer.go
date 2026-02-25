@@ -162,8 +162,16 @@ func (l *Lexer) ScanToken() token.Token {
 		} else {
 			tok = l.createToken(token.ASSIGN)
 		}
+	case '.':
+		if l.match('.') {
+			if l.match('.') {
+				tok = l.createToken(token.ELLIPSIS)
+			}
+		}
 	case ';':
 		tok = l.createToken(token.SEMICOLON)
+	case ':':
+		tok = l.createToken(token.COLON)
 	case '|':
 		if l.match('|') {
 			tok = l.createToken(token.OR)

@@ -68,6 +68,30 @@ func (l *LetStmt) String() string {
 	return out.String()
 }
 
+// Assignment statement
+type AssingmentStmt struct {
+	Token token.Token
+	Name  *Identifier
+	Value Expr
+}
+
+func (as *AssingmentStmt) stmtNode() {}
+func (as *AssingmentStmt) TokenLiteral() string {
+	return as.Token.Literal
+}
+func (as *AssingmentStmt) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(as.Name.String())
+	out.WriteString(" = ")
+
+	if as.Value != nil {
+		out.WriteString(as.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 // Return statement
 type ReturnStmt struct {
 	Token token.Token

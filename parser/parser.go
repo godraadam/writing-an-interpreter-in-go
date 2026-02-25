@@ -174,6 +174,12 @@ func (p *Parser) parseStmt() ast.Stmt {
 		return p.parseReturnStmt()
 	case token.PRINT:
 		return p.parsePrintStmt()
+	case token.IDENT:
+		as := p.parseAssignmentStmt()
+		if as != nil {
+			return as
+		}
+		return p.parseExprStmt()
 	default:
 		return p.parseExprStmt()
 	}
@@ -211,6 +217,22 @@ func (p *Parser) parsePrintStmt() *ast.PrintStmt {
 	stmt := &ast.PrintStmt{Token: p.currToken}
 	p.advance()
 	stmt.Value = p.parseExpr(LOWEST)
+	p.matchOptional(token.SEMICOLON)
+
+	return stmt
+}
+
+func (p *Parser) parseAssignmentStmt() *ast.AssingmentStmt {
+	name := &ast.Identifier{Value: p.currToken.Literal}
+	stmt := &ast.AssingmentStmt{Token: p.currToken, Name: name}
+
+	if !p.check(token.ASSIGN) {
+		return nil
+	}
+
+	p.advance()
+	stmt.Value = p.parseExpr(LOWEST)
+
 	p.matchOptional(token.SEMICOLON)
 
 	return stmt
