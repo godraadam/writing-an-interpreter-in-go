@@ -75,6 +75,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return elems[0]
 		}
 		return &object.ArrayObj{Elements: elems}
+	case *ast.MapLiteral:
+		return evalMapLiteral(node, env)
 	case *ast.FunctionLiteral:
 		return &object.FunctionObj{Params: node.Params, Body: node.Body, Env: env}
 	case *ast.IndexExpr:
@@ -278,12 +280,35 @@ func evalFuncionCall(fn object.Object, args []object.Object) object.Object {
 }
 
 func evalIndexExpr(left object.Object, index object.Object) object.Object {
-	switch left.Type() {
-	case object.ARRAY_OBJ:
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.NUMBER_OBJ:
 		return evalArrayIndexExpr(left, index)
+	case left.Type() == object.MAP_OBJ:
+		return evalMapIndexExpr(left, index)
 	default:
 		return error("Index operator not allowed on type %s", left.Type())
 	}
+}
+
+func evalMapLiteral(node *ast.MapLiteral, env *object.Environment) object.Object {
+	pairs := make(map[object.MapKey]object.MapPair)
+	for keyNode, valueNode := range node.Pairs {
+		key := Eval(keyNode, env)
+		if isError(key) {
+			return key
+		}
+		hashable, ok := key.(object.Hashable)
+		if !ok {
+			return error("Expression cannot be used as map key")
+		}
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+		hashed := hashable.Hash()
+		pairs[hashed] = object.MapPair{Key: key, Value: value}
+	}
+	return &object.MapObj{Pairs: pairs}
 }
 
 func evalArrayIndexExpr(left object.Object, index object.Object) object.Object {
@@ -298,6 +323,19 @@ func evalArrayIndexExpr(left object.Object, index object.Object) object.Object {
 
 	}
 	return arrayObj.Elements[int64(idx)]
+}
+
+func evalMapIndexExpr(left object.Object, index object.Object) object.Object {
+	mapObject := left.(*object.MapObj)
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return error("Expression cannot be used as map index")
+	}
+	pair, ok := mapObject.Pairs[key.Hash()]
+	if !ok {
+		return NIL
+	}
+	return pair.Value
 }
 
 func createFnScope(fn *object.FunctionObj, args []object.Object) *object.Environment {

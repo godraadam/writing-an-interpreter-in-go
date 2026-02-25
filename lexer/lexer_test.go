@@ -26,7 +26,11 @@ if (5 < 10) {
 
 10 == 10;
 10 != 9;
-if (5 < 10) { x } else { y }
+"foobar"
+"foo bar"
+[1, 2]
+{ "key": "value" }
+ let [head, ...tail] = arr;
 `
 
 	tests := []struct {
@@ -106,19 +110,28 @@ if (5 < 10) { x } else { y }
 		{token.NOT_EQ, "!="},
 		{token.NUMBER, "9"},
 		{token.SEMICOLON, ";"},
-		{token.IF, "if"},
-		{token.LPAREN, "("},
-		{token.NUMBER, "5"},
-		{token.LT, "<"},
-		{token.NUMBER, "10"},
-		{token.RPAREN, ")"},
+		{token.STRING, "foobar"},
+		{token.STRING, "foo bar"},
+		{token.LBRACKET, "["},
+		{token.NUMBER, "1"},
+		{token.COMMA, ","},
+		{token.NUMBER, "2"},
+		{token.RBRACKET, "]"},
 		{token.LBRACE, "{"},
-		{token.IDENT, "x"},
+		{token.STRING, "key"},
+		{token.COLON, ":"},
+		{token.STRING, "value"},
 		{token.RBRACE, "}"},
-		{token.ELSE, "else"},
-		{token.LBRACE, "{"},
-		{token.IDENT, "y"},
-		{token.RBRACE, "}"},
+		{token.LET, "let"},
+		{token.LBRACKET, "["},
+		{token.IDENT, "head"},
+		{token.COMMA, ","},
+		{token.ELLIPSIS, "..."},
+		{token.IDENT, "tail"},
+		{token.RBRACKET, "]"},
+		{token.ASSIGN, "="},
+		{token.IDENT, "arr"},
+		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}
 

@@ -142,7 +142,7 @@ func (l *Lexer) readString() token.Token {
 		reportError(l.line, "Unterminated string literal")
 	}
 	l.advance()
-	return l.createToken(token.STRING)
+	return token.Token{Type: token.STRING, Literal: (l.source[l.start+1 : l.current-1]), Line: l.line}
 
 }
 

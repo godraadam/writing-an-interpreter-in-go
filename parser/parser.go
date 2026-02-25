@@ -73,6 +73,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.IF, p.parseIfExpr)
 	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefixFn(token.LBRACKET, p.parseArrayLiteral)
+	p.registerPrefixFn(token.LBRACE, p.parseMapLiteral)
 
 	p.registerInfixFn(token.MINUS, p.parseInfixExpr)
 	p.registerInfixFn(token.OR, p.parseInfixExpr)
@@ -295,6 +296,39 @@ func (p *Parser) parseStringLiteral() ast.Expr {
 	return &ast.StringLiteral{Token: p.currToken, Value: p.currToken.Literal}
 }
 
+func (p *Parser) parseArrayLiteral() ast.Expr {
+	array := &ast.ArrayLiteral{Token: p.currToken}
+
+	array.Elements = p.parseExprList(token.RBRACKET)
+
+	return array
+}
+
+func (p *Parser) parseMapLiteral() ast.Expr {
+	theMap := &ast.MapLiteral{Token: p.currToken, Pairs: make(map[ast.Expr]ast.Expr)}
+
+	for !p.check(token.RBRACE) {
+		p.advance()
+		key := p.parseExpr(LOWEST)
+
+		if !p.match(token.COLON) {
+			return nil
+		}
+		p.advance()
+		value := p.parseExpr(LOWEST)
+		theMap.Pairs[key] = value
+
+		if !p.check(token.RBRACE) && !p.match(token.COMMA) {
+			return nil
+		}
+	}
+	if !p.match(token.RBRACE) {
+		return nil
+	}
+
+	return theMap
+}
+
 func (p *Parser) parsePrefixExpr() ast.Expr {
 	prefixExpr := &ast.PrefixExpr{Token: p.currToken, Operator: p.currToken.Literal}
 	p.advance()
@@ -367,14 +401,6 @@ func (p *Parser) parseFunctionLiteral() ast.Expr {
 	fnLit.Body = p.parseBlockStmt()
 
 	return fnLit
-}
-
-func (p *Parser) parseArrayLiteral() ast.Expr {
-	array := &ast.ArrayLiteral{Token: p.currToken}
-
-	array.Elements = p.parseExprList(token.RBRACKET)
-
-	return array
 }
 
 func (p *Parser) parseExprList(end token.TokenType) []ast.Expr {

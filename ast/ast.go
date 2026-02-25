@@ -235,6 +235,30 @@ func (al *ArrayLiteral) String() string {
 	return out.String()
 }
 
+type MapLiteral struct {
+	Token token.Token
+	Pairs map[Expr]Expr
+}
+
+func (ml *MapLiteral) exprNode() {}
+func (ml *MapLiteral) TokenLiteral() string {
+	return ml.Token.Literal
+}
+
+func (ml *MapLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("{")
+	pairs := []string{}
+	for k, v := range ml.Pairs {
+		pairs = append(pairs, k.String()+": "+v.String())
+	}
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+
+	return out.String()
+}
+
 type PrefixExpr struct {
 	Token    token.Token
 	Operator string

@@ -3,6 +3,7 @@ package object
 import (
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"monkey/ast"
 	"strings"
 )
@@ -23,6 +24,7 @@ const (
 	ERROR_OBJ    = "ERROR"
 	FUNCTION_OBJ = "FUNCTION"
 	ARRAY_OBJ    = "ARRAY"
+	MAP_OBJ      = "MAP"
 )
 
 type Number struct {
@@ -54,7 +56,11 @@ type String struct {
 }
 
 func (s *String) Inspect() string {
-	return s.Value
+	var out bytes.Buffer
+	out.WriteString("\"")
+	out.WriteString(s.Value)
+	out.WriteString("\"")
+	return out.String()
 }
 
 func (n *String) Type() ObjectType {
@@ -113,8 +119,35 @@ func (arr *ArrayObj) Inspect() string {
 	return out.String()
 }
 
-func (err *ArrayObj) Type() ObjectType {
+func (arr *ArrayObj) Type() ObjectType {
 	return ARRAY_OBJ
+}
+
+type MapPair struct {
+	Key   Object
+	Value Object
+}
+
+type MapObj struct {
+	Pairs map[MapKey]MapPair
+}
+
+func (mo *MapObj) Inspect() string {
+	var out bytes.Buffer
+
+	out.WriteString("{")
+	pairs := []string{}
+	for _, pair := range mo.Pairs {
+		pairs = append(pairs, pair.Key.Inspect()+": "+pair.Value.Inspect())
+	}
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+
+	return out.String()
+}
+
+func (mo *MapObj) Type() ObjectType {
+	return MAP_OBJ
 }
 
 type FunctionObj struct {
@@ -141,6 +174,33 @@ func (f *FunctionObj) Inspect() string {
 	return out.String()
 }
 
-func (err *FunctionObj) Type() ObjectType {
+func (f *FunctionObj) Type() ObjectType {
 	return FUNCTION_OBJ
+}
+
+type MapKey struct {
+	Type  ObjectType
+	Value float64
+}
+
+type Hashable interface {
+	Hash() MapKey
+}
+
+func (b *Boolean) Hash() MapKey {
+	if b.Value {
+		return MapKey{Type: BOOLEAN_OBJ, Value: 1}
+	}
+	return MapKey{Type: BOOLEAN_OBJ, Value: 0}
+
+}
+
+func (n *Number) Hash() MapKey {
+	return MapKey{Type: NUMBER_OBJ, Value: n.Value}
+}
+
+func (s *String) Hash() MapKey {
+	h := fnv.New64a()
+	h.Write([]byte(s.Value))
+	return MapKey{Type: STR_OBJ, Value: float64(h.Sum64())}
 }
