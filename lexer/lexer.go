@@ -106,7 +106,7 @@ func (l *Lexer) skipLineComment() {
 	l.jump()
 }
 
-// greedily consume characters to match keword or identifer
+// greedily consume characters to match keyword or identifer
 func (l *Lexer) readIdentifier() token.Token {
 	for isAlphaNumeric(l.peek()) {
 		l.advance()

@@ -24,7 +24,19 @@ func (e *Environment) Get(name string) (Object, bool) {
 	return obj, ok
 }
 
-func (e *Environment) Set(name string, obj Object) Object {
+func (e *Environment) Define(name string, obj Object) Object {
 	e.store[name] = obj
 	return obj
+}
+
+func (e *Environment) Assign(name string, obj Object) (Object, bool) {
+	_, ok := e.Get(name)
+	if !ok {
+		if e.parent != nil {
+			return e.parent.Assign(name, obj)
+		}
+		return nil, false
+	}
+	e.store[name] = obj
+	return obj, true
 }

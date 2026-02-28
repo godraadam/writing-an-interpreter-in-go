@@ -68,30 +68,6 @@ func (l *LetStmt) String() string {
 	return out.String()
 }
 
-// Assignment statement
-type AssingmentStmt struct {
-	Token token.Token
-	Name  *Identifier
-	Value Expr
-}
-
-func (as *AssingmentStmt) stmtNode() {}
-func (as *AssingmentStmt) TokenLiteral() string {
-	return as.Token.Literal
-}
-func (as *AssingmentStmt) String() string {
-	var out bytes.Buffer
-
-	out.WriteString(as.Name.String())
-	out.WriteString(" = ")
-
-	if as.Value != nil {
-		out.WriteString(as.Value.String())
-	}
-	out.WriteString(";")
-	return out.String()
-}
-
 // Return statement
 type ReturnStmt struct {
 	Token token.Token
@@ -130,6 +106,26 @@ func (ps *PrintStmt) String() string {
 		out.WriteString(ps.Value.String())
 	}
 	out.WriteString(";")
+	return out.String()
+}
+
+type WhileStmt struct {
+	Token token.Token
+	Cond  Expr
+	Body  *BlockStmt
+}
+
+func (ws *WhileStmt) stmtNode() {}
+func (ws *WhileStmt) TokenLiteral() string {
+	return ws.Token.Literal
+}
+
+func (ws *WhileStmt) String() string {
+	var out bytes.Buffer
+	out.WriteString(ws.TokenLiteral())
+	out.WriteString("(" + ws.Cond.String() + ")")
+	out.WriteString(" {")
+	out.WriteString(ws.Body.String() + "}")
 	return out.String()
 }
 
@@ -310,22 +306,41 @@ type IfExpr struct {
 	Alternative *BlockStmt
 }
 
-func (i *IfExpr) exprNode() {}
-func (i *IfExpr) TokenLiteral() string {
-	return i.Token.Literal
+func (ie *IfExpr) exprNode() {}
+func (ie *IfExpr) TokenLiteral() string {
+	return ie.Token.Literal
 }
 
-func (i *IfExpr) String() string {
+func (ie *IfExpr) String() string {
 	var out bytes.Buffer
 	out.WriteString("if")
-	out.WriteString(i.Condition.String())
+	out.WriteString(ie.Condition.String())
 	out.WriteString(" ")
-	out.WriteString(i.Consequence.String())
-	if i.Alternative != nil {
+	out.WriteString(ie.Consequence.String())
+	if ie.Alternative != nil {
 		out.WriteString(" ")
 		out.WriteString("else ")
-		out.WriteString(i.Alternative.String())
+		out.WriteString(ie.Alternative.String())
 	}
+	return out.String()
+}
+
+type AssignExpr struct {
+	Token token.Token
+	Field Expr
+	Value Expr
+}
+
+func (ae *AssignExpr) exprNode() {}
+func (ae *AssignExpr) TokenLiteral() string {
+	return ae.Token.Literal
+}
+
+func (ae *AssignExpr) String() string {
+	var out bytes.Buffer
+	out.WriteString(ae.Field.String())
+	out.WriteString(" = ")
+	out.WriteString(ae.Value.String())
 	return out.String()
 }
 

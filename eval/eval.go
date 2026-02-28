@@ -36,25 +36,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		env.Set(node.Name.Value, val)
+		env.Define(node.Name.Value, val)
 	case *ast.ReturnStmt:
 		val := Eval(node.Value, env)
 		if isError(val) {
 			return val
 		}
 		return &object.ReturnObj{Value: val}
-	case *ast.AssingmentStmt:
-		val := Eval(node.Value, env)
-		if isError(val) {
-			return val
+	case *ast.WhileStmt:
+		for truthy(Eval(node.Cond, env)) {
+			evalBlockStmt(node.Body, env)
 		}
-		_, ok := env.Get(node.Name.Value)
-		if !ok {
-			return error("Variable %s not found", node.Name.Value)
-		}
-		// we could also do mutability checks or type checks here
-		env.Set(node.Name.Value, val)
-		return val
 	case *ast.PrintStmt:
 		val := Eval(node.Value, env)
 		if isError(val) {
@@ -107,6 +99,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalInfixExpr(node.Operator, left, right)
 	case *ast.BlockStmt:
 		return evalBlockStmt(node, env)
+	case *ast.AssignExpr:
+		return evalAssignExpr(node, env)
 	case *ast.IfExpr:
 		return evalIfExpr(node, env)
 	case *ast.Identifier:
@@ -338,10 +332,53 @@ func evalMapIndexExpr(left object.Object, index object.Object) object.Object {
 	return pair.Value
 }
 
+func evalAssignExpr(node *ast.AssignExpr, env *object.Environment) object.Object {
+	val := Eval(node.Value, env)
+	if isError(val) {
+		return val
+	}
+
+	switch field := node.Field.(type) {
+	case *ast.Identifier:
+		_, ok := env.Assign(field.Value, val)
+		if !ok {
+			return error("Variable %s not found", field.Value)
+		}
+	case *ast.IndexExpr:
+		indexee := Eval(field.Left, env)
+		if isError(indexee) {
+			return indexee
+		}
+		index := Eval(field.Index, env)
+		if isError(index) {
+			return index
+		}
+		switch indexee.Type() {
+		case object.ARRAY_OBJ:
+			if index.Type() != object.NUMBER_OBJ {
+				return error("Invalid index expression %s", index.Inspect())
+			}
+			idx := index.(*object.Number)
+			if math.Trunc(idx.Value) != idx.Value {
+				return error("Invalid index expression %s", index.Inspect())
+			}
+			indexee.(*object.ArrayObj).Elements[int64(idx.Value)] = val
+		case object.MAP_OBJ:
+			hashable, ok := index.(object.Hashable)
+			if !ok {
+				return error("Invalid index expression %s", index.Inspect())
+			}
+			hashed := hashable.Hash()
+			indexee.(*object.MapObj).Pairs[hashed] = object.MapPair{Key: index, Value: val}
+		}
+	}
+	return val
+}
+
 func createFnScope(fn *object.FunctionObj, args []object.Object) *object.Environment {
 	subEnv := object.NewSubEnvironment(fn.Env)
 	for idx, param := range fn.Params {
-		subEnv.Set(param.Value, args[idx])
+		subEnv.Define(param.Value, args[idx])
 	}
 	return subEnv
 }

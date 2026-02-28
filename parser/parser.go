@@ -16,6 +16,7 @@ type (
 const (
 	_ int = iota
 	LOWEST
+	ASSIGN
 	OR
 	AND
 	EQ
@@ -42,6 +43,7 @@ var precedences = map[token.TokenType]int{
 	token.AND:      AND,
 	token.OR:       OR,
 	token.LBRACKET: INDEX,
+	token.ASSIGN:   ASSIGN,
 }
 
 type Parser struct {
@@ -89,6 +91,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfixFn(token.LTE, p.parseInfixExpr)
 	p.registerInfixFn(token.LPAREN, p.parseCallExpr)
 	p.registerInfixFn(token.LBRACKET, p.parseIndexExpr)
+	p.registerInfixFn(token.ASSIGN, p.parseAssignmentExpr)
 
 	p.advance()
 	p.advance()
@@ -112,6 +115,20 @@ func (p *Parser) match(t token.TokenType) bool {
 
 func (p *Parser) check(t token.TokenType) bool {
 	return p.peekToken.Type == t
+}
+
+func (p *Parser) matchCurrent(t token.TokenType) bool {
+	isMatch := p.checkCurrent(t)
+	if isMatch {
+		p.advance()
+	} else {
+		p.addError(p.peekToken.Line, fmt.Sprintf("Expected %s got %s", t, p.peekToken.Literal))
+	}
+	return isMatch
+}
+
+func (p *Parser) checkCurrent(t token.TokenType) bool {
+	return p.currToken.Type == t
 }
 
 func (p *Parser) matchOptional(t token.TokenType) bool {
@@ -173,14 +190,10 @@ func (p *Parser) parseStmt() ast.Stmt {
 		return p.parseLetStmt()
 	case token.RETURN:
 		return p.parseReturnStmt()
+	case token.WHILE:
+		return p.parseWhileStmt()
 	case token.PRINT:
 		return p.parsePrintStmt()
-	case token.IDENT:
-		as := p.parseAssignmentStmt()
-		if as != nil {
-			return as
-		}
-		return p.parseExprStmt()
 	default:
 		return p.parseExprStmt()
 	}
@@ -205,6 +218,21 @@ func (p *Parser) parseLetStmt() *ast.LetStmt {
 	return stmt
 }
 
+func (p *Parser) parseWhileStmt() *ast.WhileStmt {
+	stmt := &ast.WhileStmt{Token: p.currToken}
+
+	if !p.match(token.LPAREN) {
+		return nil
+	}
+	stmt.Cond = p.parseExpr(LOWEST)
+	if !p.checkCurrent(token.RPAREN) {
+		return nil
+	}
+
+	stmt.Body = p.parseBlockStmt()
+	return stmt
+}
+
 func (p *Parser) parseReturnStmt() *ast.ReturnStmt {
 	stmt := &ast.ReturnStmt{Token: p.currToken}
 	p.advance()
@@ -223,20 +251,28 @@ func (p *Parser) parsePrintStmt() *ast.PrintStmt {
 	return stmt
 }
 
-func (p *Parser) parseAssignmentStmt() *ast.AssingmentStmt {
-	name := &ast.Identifier{Value: p.currToken.Literal}
-	stmt := &ast.AssingmentStmt{Token: p.currToken, Name: name}
+func (p *Parser) parseAssignmentExpr(left ast.Expr) ast.Expr {
+	expr := &ast.AssignExpr{Token: p.currToken}
+	ident, ok := left.(*ast.Identifier)
 
-	if !p.check(token.ASSIGN) {
-		return nil
+	if ok {
+		expr.Field = ident
+	}
+
+	indexExpr, ok := left.(*ast.IndexExpr)
+
+	if ok {
+		expr.Field = indexExpr
+	} else {
+		p.addError(p.currToken.Line, "Invalid expression in left hand side of assignment")
 	}
 
 	p.advance()
-	stmt.Value = p.parseExpr(LOWEST)
+	expr.Value = p.parseExpr(LOWEST)
 
 	p.matchOptional(token.SEMICOLON)
 
-	return stmt
+	return expr
 }
 
 func (p *Parser) parseExprStmt() *ast.ExprStmt {
