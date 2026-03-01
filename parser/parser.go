@@ -202,10 +202,17 @@ func (p *Parser) parseStmt() ast.Stmt {
 func (p *Parser) parseLetStmt() *ast.LetStmt {
 	stmt := &ast.LetStmt{Token: p.currToken}
 
-	if !p.match(token.IDENT) {
-		return nil
+	switch p.peekToken.Type {
+	case token.IDENT:
+		p.advance()
+		stmt.Target = &ast.Identifier{Value: p.currToken.Literal, Token: p.currToken}
+	case token.LBRACKET:
+		p.advance()
+		stmt.Target = p.parseArrayDestructuringExpr()
+	case token.LBRACE:
+		p.advance()
+		stmt.Target = p.parseMapDestructuringExpr()
 	}
-	stmt.Name = &ast.Identifier{Value: p.currToken.Literal, Token: p.currToken}
 
 	if !p.match(token.ASSIGN) {
 		return nil
@@ -510,4 +517,114 @@ func (p *Parser) parseIndexExpr(left ast.Expr) ast.Expr {
 		return nil
 	}
 	return exp
+}
+
+func (p *Parser) parseArrayDestructuringExpr() *ast.ArrayDestructuringExpr {
+	ellipsisIndex := -1
+	ade := &ast.ArrayDestructuringExpr{Token: p.currToken, EllipsisExprPosition: ellipsisIndex}
+	ellipsisExpr := &ast.EllipsisExpr{}
+	idx := 0
+	list := []ast.Identifier{}
+
+	if p.check(token.RBRACKET) {
+		p.advance()
+		ade.EllipsisExprPosition = ellipsisIndex
+		ade.Names = list
+		return ade
+	}
+
+	idx += 1
+
+	switch p.peekToken.Type {
+	case token.IDENT:
+		p.advance()
+		list = append(list, ast.Identifier{Value: p.currToken.Literal})
+	case token.ELLIPSIS:
+		p.advance()
+		ellipsisExpr.Token = p.currToken
+		if !p.match(token.IDENT) {
+			p.addError(p.currToken.Line, "Invalid ellipsis expression")
+		}
+		ellipsisExpr.Name = ast.Identifier{Value: p.currToken.Literal}
+		ade.EllipsisExpr = ellipsisExpr
+		ade.EllipsisExprPosition = idx - 1
+	}
+
+	for p.check(token.COMMA) {
+		idx += 1
+		p.advance()
+		switch p.peekToken.Type {
+		case token.IDENT:
+			p.advance()
+			list = append(list, ast.Identifier{Value: p.currToken.Literal})
+		case token.ELLIPSIS:
+			p.advance()
+			ellipsisExpr.Token = p.currToken
+			if !p.match(token.IDENT) {
+				p.addError(p.currToken.Line, "Invalid ellipsis expression")
+			}
+			ellipsisExpr.Name = ast.Identifier{Value: p.currToken.Literal}
+			ade.EllipsisExpr = ellipsisExpr
+			ade.EllipsisExprPosition = idx - 1
+		}
+	}
+
+	if !p.match(token.RBRACKET) {
+		return nil
+	}
+	ade.Names = list
+	return ade
+}
+
+func (p *Parser) parseMapDestructuringExpr() *ast.MapDestructuringExpr {
+	mde := &ast.MapDestructuringExpr{Token: p.currToken}
+	ellipsisExpr := &ast.EllipsisExpr{}
+	idx := 0
+	list := []ast.Identifier{}
+
+	if p.check(token.LBRACE) {
+		p.advance()
+		mde.Names = list
+		return mde
+	}
+
+	idx += 1
+
+	switch p.peekToken.Type {
+	case token.IDENT:
+		p.advance()
+		list = append(list, ast.Identifier{Value: p.currToken.Literal})
+	case token.ELLIPSIS:
+		p.advance()
+		ellipsisExpr.Token = p.currToken
+		if !p.match(token.IDENT) {
+			p.addError(p.currToken.Line, "Invalid ellipsis expression")
+		}
+		ellipsisExpr.Name = ast.Identifier{Value: p.currToken.Literal}
+		mde.EllipsisExpr = ellipsisExpr
+	}
+
+	for p.check(token.COMMA) {
+		idx += 1
+		p.advance()
+		switch p.peekToken.Type {
+		case token.IDENT:
+			p.advance()
+			list = append(list, ast.Identifier{Value: p.currToken.Literal})
+		case token.ELLIPSIS:
+			p.advance()
+			ellipsisExpr.Token = p.currToken
+			if !p.match(token.IDENT) {
+				p.addError(p.currToken.Line, "Invalid ellipsis expression")
+			}
+			ellipsisExpr.Name = ast.Identifier{Value: p.currToken.Literal}
+			mde.EllipsisExpr = ellipsisExpr
+		}
+	}
+
+	if !p.match(token.RBRACE) {
+		return nil
+	}
+	mde.Names = list
+	return mde
 }

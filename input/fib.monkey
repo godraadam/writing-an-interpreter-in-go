@@ -1,8 +1,13 @@
-let fib = fn(x) {
-	if (x == 0 || x== 1) {
-		return 1;
-	}
-	return fib(x - 1) + fib(x - 2)
-}
+let arr = [1, 2]
+let [...w, x, y, z] = arr
 
-print fib(5)
+print x
+print y
+print z
+print w
+ 
+let map = {"a": "b", "c": "d"}
+let {a, b} = map
+
+print a
+print b

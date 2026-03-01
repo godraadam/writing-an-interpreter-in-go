@@ -43,11 +43,17 @@ func (p *Program) String() string {
 	return out.String()
 }
 
+// new LetStmt: let <identifier> | <destructuring_expr> = <expr>
+// destructuring_expr: <array_destructuring_expr> | <map_destructuring_expr>
+// array_destructuring_expr: [<identifer> (, <identifier>)*, <ellipsis_expr>?] | [<ellipsis_expr> (, <identifier>*)]
+// map_destructuring_expr: {<identifier> (, <identifier>)*, <ellipsis_expr>?}
+// ellipsis_expr: ...<identifer>
+
 // Let statement
 type LetStmt struct {
-	Token token.Token
-	Name  *Identifier
-	Value Expr
+	Token  token.Token
+	Target Expr
+	Value  Expr
 }
 
 func (l *LetStmt) stmtNode() {}
@@ -58,7 +64,7 @@ func (l *LetStmt) String() string {
 	var out bytes.Buffer
 
 	out.WriteString(l.TokenLiteral() + " ")
-	out.WriteString(l.Name.String())
+	out.WriteString(l.Target.String())
 	out.WriteString(" = ")
 
 	if l.Value != nil {
@@ -437,6 +443,79 @@ func (ie *IndexExpr) String() string {
 	out.WriteString("[")
 	out.WriteString(ie.Index.String())
 	out.WriteString("]")
+
+	return out.String()
+}
+
+type EllipsisExpr struct {
+	Token token.Token
+	Name  Identifier
+}
+
+func (ee *EllipsisExpr) exprNode() {}
+func (ee *EllipsisExpr) TokenLiteral() string {
+	return ee.Token.Literal
+}
+
+func (ee *EllipsisExpr) String() string {
+	return ee.TokenLiteral() + ee.Name.String()
+}
+
+// ellipsis where?
+type ArrayDestructuringExpr struct {
+	Token                token.Token
+	Names                []Identifier
+	EllipsisExprPosition int // -1 for none
+	EllipsisExpr         *EllipsisExpr
+}
+
+func (ade *ArrayDestructuringExpr) exprNode() {}
+func (ade *ArrayDestructuringExpr) TokenLiteral() string {
+	return ade.Token.Literal
+}
+
+func (ade *ArrayDestructuringExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("[")
+	elements := []string{}
+	for i, el := range ade.Names {
+		if ade.EllipsisExpr != nil && i == ade.EllipsisExprPosition {
+			elements = append(elements, ade.EllipsisExpr.String())
+		}
+		elements = append(elements, el.String())
+	}
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+
+	return out.String()
+}
+
+type MapDestructuringExpr struct {
+	Token        token.Token
+	Names        []Identifier
+	EllipsisExpr *EllipsisExpr
+}
+
+func (mde *MapDestructuringExpr) exprNode() {}
+func (mde *MapDestructuringExpr) TokenLiteral() string {
+	return mde.Token.Literal
+}
+
+func (mde *MapDestructuringExpr) String() string {
+	var out bytes.Buffer
+
+	out.WriteString("{")
+	elements := []string{}
+	for _, el := range mde.Names {
+		elements = append(elements, el.String())
+	}
+	out.WriteString(strings.Join(elements, ", "))
+	if mde.EllipsisExpr != nil {
+		out.WriteString(", ")
+		out.WriteString(mde.EllipsisExpr.String())
+	}
+	out.WriteString("}")
 
 	return out.String()
 }

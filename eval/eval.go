@@ -32,11 +32,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.ExprStmt:
 		return Eval(node.Expr, env)
 	case *ast.LetStmt:
-		val := Eval(node.Value, env)
+		val := evalLetStmt(node, env)
 		if isError(val) {
 			return val
 		}
-		env.Define(node.Name.Value, val)
 	case *ast.ReturnStmt:
 		val := Eval(node.Value, env)
 		if isError(val) {
@@ -132,6 +131,91 @@ func evalProgram(stmts []ast.Stmt, env *object.Environment) object.Object {
 		}
 	}
 	return result
+}
+
+func evalLetStmt(node *ast.LetStmt, env *object.Environment) object.Object {
+	val := Eval(node.Value, env)
+	if isError(val) {
+		return val
+	}
+	ident, ok := node.Target.(*ast.Identifier)
+	if ok {
+		env.Define(ident.Value, val)
+		return val
+	}
+	arrayDestr, ok := node.Target.(*ast.ArrayDestructuringExpr)
+	if ok {
+		if val.Type() != object.ARRAY_OBJ {
+			return error("Cannot destructure non-iterable object!")
+		}
+		arr := val.(*object.ArrayObj)
+		evalLetStmtWithArrDestrExpr(arrayDestr, arr, env)
+	}
+
+	mapDestr, ok := node.Target.(*ast.MapDestructuringExpr)
+	if ok {
+		if val.Type() != object.MAP_OBJ {
+			return error("Cannot destructure non-map object!")
+		}
+		mapObj := val.(*object.MapObj)
+		evalLetStmtWithMapDestrExpr(mapDestr, mapObj, env)
+	}
+
+	// TODO: map destructuring
+	return val
+}
+
+func evalLetStmtWithArrDestrExpr(expr *ast.ArrayDestructuringExpr, arr *object.ArrayObj, env *object.Environment) {
+	if expr.EllipsisExprPosition >= 0 {
+		// up until ellipsis expression
+		ellipsisStart := expr.EllipsisExprPosition
+		ellipsisEnd := len(arr.Elements) - (len(expr.Names) - ellipsisStart)
+		for idx := range ellipsisStart {
+			name := expr.Names[idx]
+			if idx < len(arr.Elements) {
+				env.Define(name.Value, arr.Elements[idx])
+			} else {
+				env.Define(name.Value, NIL)
+			}
+		}
+		// ellipsis expression
+		var ellipsisArr = &object.ArrayObj{}
+		if ellipsisEnd > ellipsisStart {
+			ellipsisArr.Elements = arr.Elements[ellipsisStart:ellipsisEnd]
+		} else {
+			ellipsisArr.Elements = []object.Object{}
+		}
+		env.Define(expr.EllipsisExpr.Name.Value, ellipsisArr)
+		// after ellipsis
+		for idx := range len(expr.Names) - ellipsisStart {
+			name := expr.Names[idx+ellipsisStart]
+			if idx+ellipsisEnd < len(arr.Elements) && idx+ellipsisEnd >= 0 {
+				env.Define(name.Value, arr.Elements[idx+ellipsisEnd])
+			} else {
+				env.Define(name.Value, NIL)
+			}
+		}
+	} else {
+		for idx, name := range expr.Names {
+			if idx < len(arr.Elements) {
+				env.Define(name.Value, arr.Elements[idx])
+			} else {
+				env.Define(name.Value, NIL)
+			}
+		}
+	}
+}
+
+func evalLetStmtWithMapDestrExpr(expr *ast.MapDestructuringExpr, mapObj *object.MapObj, env *object.Environment) {
+	for _, name := range expr.Names {
+		strObj := object.String{Value: name.Value}
+		pair, ok := mapObj.Pairs[strObj.Hash()]
+		if !ok {
+			env.Define(name.Value, NIL)
+		} else {
+			env.Define(name.Value, pair.Value)
+		}
+	}
 }
 
 func evalPrefixExpr(op string, operand object.Object) object.Object {
@@ -355,23 +439,42 @@ func evalAssignExpr(node *ast.AssignExpr, env *object.Environment) object.Object
 		}
 		switch indexee.Type() {
 		case object.ARRAY_OBJ:
-			if index.Type() != object.NUMBER_OBJ {
-				return error("Invalid index expression %s", index.Inspect())
-			}
-			idx := index.(*object.Number)
-			if math.Trunc(idx.Value) != idx.Value {
-				return error("Invalid index expression %s", index.Inspect())
-			}
-			indexee.(*object.ArrayObj).Elements[int64(idx.Value)] = val
+			arrayObj := indexee.(*object.ArrayObj)
+			return evalAssignToArrayIndexExpr(arrayObj, index, val)
 		case object.MAP_OBJ:
-			hashable, ok := index.(object.Hashable)
-			if !ok {
-				return error("Invalid index expression %s", index.Inspect())
-			}
-			hashed := hashable.Hash()
-			indexee.(*object.MapObj).Pairs[hashed] = object.MapPair{Key: index, Value: val}
+			mapObj := indexee.(*object.MapObj)
+			return evalAssignToMapIndexExpr(mapObj, index, val)
 		}
+	default:
+		return error("Invalid l-value expression %s", node.Field.String())
 	}
+	return val
+}
+
+func evalAssignToArrayIndexExpr(indexee *object.ArrayObj, index object.Object, val object.Object) object.Object {
+	if index.Type() != object.NUMBER_OBJ {
+		return error("Invalid index expression %s", index.Inspect())
+	}
+	idx := index.(*object.Number)
+	if math.Trunc(idx.Value) != idx.Value {
+		return error("Invalid index expression %s", index.Inspect())
+	}
+	if idx.Value < 0 || int(idx.Value) >= len(indexee.Elements) {
+		return error("Array index out of bound %s", index.Inspect())
+	}
+	indexee.Elements[int64(idx.Value)] = val
+
+	return val
+}
+
+func evalAssignToMapIndexExpr(indexee *object.MapObj, index object.Object, val object.Object) object.Object {
+	hashable, ok := index.(object.Hashable)
+	if !ok {
+		return error("Invalid index expression %s", index.Inspect())
+	}
+	hashed := hashable.Hash()
+	indexee.Pairs[hashed] = object.MapPair{Key: index, Value: val}
+
 	return val
 }
 
