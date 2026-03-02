@@ -60,6 +60,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return nativeBoolToMonkeyBool(node.Value)
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
+	case *ast.NilLiteral:
+		return NIL
 	case *ast.ArrayLiteral:
 		elems := evalExprs(node.Elements, env)
 		if len(elems) == 1 && isError(elems[0]) {
@@ -113,7 +115,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if len(args) == 1 && isError(args[0]) {
 			return args[0]
 		}
-		return evalFuncionCall(function, args)
+		return evalFunctionCall(function, args)
 	}
 
 	return nil
@@ -149,7 +151,7 @@ func evalLetStmt(node *ast.LetStmt, env *object.Environment) object.Object {
 			return error("Cannot destructure non-iterable object!")
 		}
 		arr := val.(*object.ArrayObj)
-		evalLetStmtWithArrDestrExpr(arrayDestr, arr, env)
+		defineArrayDestructuringExpressionElements(arrayDestr, arr, env)
 	}
 
 	mapDestr, ok := node.Target.(*ast.MapDestructuringExpr)
@@ -158,14 +160,14 @@ func evalLetStmt(node *ast.LetStmt, env *object.Environment) object.Object {
 			return error("Cannot destructure non-map object!")
 		}
 		mapObj := val.(*object.MapObj)
-		evalLetStmtWithMapDestrExpr(mapDestr, mapObj, env)
+		defineMapDestructuringExpressionElements(mapDestr, mapObj, env)
 	}
 
 	// TODO: map destructuring
 	return val
 }
 
-func evalLetStmtWithArrDestrExpr(expr *ast.ArrayDestructuringExpr, arr *object.ArrayObj, env *object.Environment) {
+func defineArrayDestructuringExpressionElements(expr *ast.ArrayDestructuringExpr, arr *object.ArrayObj, env *object.Environment) {
 	if expr.EllipsisExprPosition >= 0 {
 		// up until ellipsis expression
 		ellipsisStart := expr.EllipsisExprPosition
@@ -206,7 +208,7 @@ func evalLetStmtWithArrDestrExpr(expr *ast.ArrayDestructuringExpr, arr *object.A
 	}
 }
 
-func evalLetStmtWithMapDestrExpr(expr *ast.MapDestructuringExpr, mapObj *object.MapObj, env *object.Environment) {
+func defineMapDestructuringExpressionElements(expr *ast.MapDestructuringExpr, mapObj *object.MapObj, env *object.Environment) {
 	for _, name := range expr.Names {
 		strObj := object.String{Value: name.Value}
 		pair, ok := mapObj.Pairs[strObj.Hash()]
@@ -252,10 +254,6 @@ func evalMinusOpExpr(operand object.Object) object.Object {
 
 func evalInfixExpr(op string, left object.Object, right object.Object) object.Object {
 	switch {
-	case left.Type() != right.Type():
-		return error("Type mismatch %s %s %s", left.Type(), op, right.Type())
-	case left.Type() == object.NUMBER_OBJ:
-		return evalNumberInfixExpr(op, left, right)
 	case op == "==":
 		return nativeBoolToMonkeyBool(left == right)
 	case op == "!=":
@@ -264,6 +262,11 @@ func evalInfixExpr(op string, left object.Object, right object.Object) object.Ob
 		return nativeBoolToMonkeyBool(truthy(left) || truthy(right))
 	case op == "&&":
 		return nativeBoolToMonkeyBool(truthy(left) && truthy(right))
+	case left.Type() != right.Type():
+		return error("Type mismatch %s %s %s", left.Type(), op, right.Type())
+	case left.Type() == object.NUMBER_OBJ:
+		return evalNumberInfixExpr(op, left, right)
+
 	default:
 		return error("Unknown operator %s %s %s", left.Type(), op, right.Type())
 	}
@@ -346,13 +349,16 @@ func evalExprs(exprs []ast.Expr, env *object.Environment) []object.Object {
 	return result
 }
 
-func evalFuncionCall(fn object.Object, args []object.Object) object.Object {
+func evalFunctionCall(fn object.Object, args []object.Object) object.Object {
 	function, ok := fn.(*object.FunctionObj)
 	if !ok {
 		return error("%s is not a function!", fn.Inspect())
 	}
 
-	fnEnv := createFnScope(function, args)
+	fnEnv, ok := createFnScope(function, args)
+	if !ok {
+		return error("Invalid arguments!")
+	}
 	evaluated := Eval(function.Body, fnEnv)
 	return unwrapReturnValue(evaluated)
 }
@@ -478,12 +484,25 @@ func evalAssignToMapIndexExpr(indexee *object.MapObj, index object.Object, val o
 	return val
 }
 
-func createFnScope(fn *object.FunctionObj, args []object.Object) *object.Environment {
+func createFnScope(fn *object.FunctionObj, args []object.Object) (*object.Environment, bool) {
 	subEnv := object.NewSubEnvironment(fn.Env)
 	for idx, param := range fn.Params {
-		subEnv.Define(param.Value, args[idx])
+		switch param := param.(type) {
+		case *ast.Identifier:
+			subEnv.Define(param.Value, args[idx])
+		case *ast.ArrayDestructuringExpr:
+			if args[idx].Type() != object.ARRAY_OBJ {
+				return nil, false
+			}
+			defineArrayDestructuringExpressionElements(param, args[idx].(*object.ArrayObj), subEnv)
+		case *ast.MapDestructuringExpr:
+			if args[idx].Type() != object.MAP_OBJ {
+				return nil, false
+			}
+			defineMapDestructuringExpressionElements(param, args[idx].(*object.MapObj), subEnv)
+		}
 	}
-	return subEnv
+	return subEnv, true
 }
 
 func unwrapReturnValue(obj object.Object) object.Object {

@@ -1,13 +1,8 @@
-let arr = [1, 2]
-let [...w, x, y, z] = arr
+let forEach = fn([x, ...xs], cb) {
+    if (x != nil) {
+        cb(x)
+        forEach(xs, cb) 
+    }
+} 
 
-print x
-print y
-print z
-print w
- 
-let map = {"a": "b", "c": "d"}
-let {a, b} = map
-
-print a
-print b
+forEach([1, 2, 3], fn(x) { print x })

@@ -43,12 +43,6 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// new LetStmt: let <identifier> | <destructuring_expr> = <expr>
-// destructuring_expr: <array_destructuring_expr> | <map_destructuring_expr>
-// array_destructuring_expr: [<identifer> (, <identifier>)*, <ellipsis_expr>?] | [<ellipsis_expr> (, <identifier>*)]
-// map_destructuring_expr: {<identifier> (, <identifier>)*, <ellipsis_expr>?}
-// ellipsis_expr: ...<identifer>
-
 // Let statement
 type LetStmt struct {
 	Token  token.Token
@@ -186,13 +180,26 @@ type BooleanLiteral struct {
 	Value bool
 }
 
-func (i *BooleanLiteral) exprNode() {}
-func (i *BooleanLiteral) TokenLiteral() string {
-	return i.Token.Literal
+func (bl *BooleanLiteral) exprNode() {}
+func (bl *BooleanLiteral) TokenLiteral() string {
+	return bl.Token.Literal
 }
 
-func (i *BooleanLiteral) String() string {
-	return i.Token.Literal
+func (bl *BooleanLiteral) String() string {
+	return bl.Token.Literal
+}
+
+type NilLiteral struct {
+	Token token.Token
+}
+
+func (nl *NilLiteral) exprNode() {}
+func (nl *NilLiteral) TokenLiteral() string {
+	return nl.Token.Literal
+}
+
+func (nl *NilLiteral) String() string {
+	return nl.Token.Literal
 }
 
 type StringLiteral struct {
@@ -362,17 +369,18 @@ func (bs *BlockStmt) TokenLiteral() string {
 
 func (bs *BlockStmt) String() string {
 	var out bytes.Buffer
-
+	out.WriteString("{\n")
 	for _, stmt := range bs.Stmts {
-		out.WriteString(stmt.String())
+		out.WriteString("  " + stmt.String() + "\n")
 	}
+	out.WriteString("\n}")
 
 	return out.String()
 }
 
 type FunctionLiteral struct {
 	Token  token.Token
-	Params []*Identifier
+	Params []Expr
 	Body   *BlockStmt
 }
 
@@ -392,7 +400,7 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(fl.TokenLiteral())
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
-	out.WriteString(")")
+	out.WriteString(") ")
 	out.WriteString(fl.Body.String())
 
 	return out.String()
@@ -461,7 +469,6 @@ func (ee *EllipsisExpr) String() string {
 	return ee.TokenLiteral() + ee.Name.String()
 }
 
-// ellipsis where?
 type ArrayDestructuringExpr struct {
 	Token                token.Token
 	Names                []Identifier
@@ -484,6 +491,9 @@ func (ade *ArrayDestructuringExpr) String() string {
 			elements = append(elements, ade.EllipsisExpr.String())
 		}
 		elements = append(elements, el.String())
+	}
+	if ade.EllipsisExpr != nil && ade.EllipsisExprPosition == len(ade.Names) {
+		elements = append(elements, ade.EllipsisExpr.String())
 	}
 	out.WriteString(strings.Join(elements, ", "))
 	out.WriteString("]")

@@ -30,7 +30,7 @@ func runFile(pathToScript string) {
 	}
 	source := string(bytes[:])
 	env := object.NewEnvironment()
-	run(source, env)
+	run(source, env, false)
 }
 
 func runRepl() {
@@ -46,12 +46,12 @@ func runRepl() {
 		if source == "exit" {
 			break
 		}
-		run(source, env)
+		run(source, env, true)
 
 	}
 }
 
-func run(source string, env *object.Environment) {
+func run(source string, env *object.Environment, replMode bool) {
 	// do the work here
 	l := lexer.New(source)
 	p := parser.New(l)
@@ -63,7 +63,7 @@ func run(source string, env *object.Environment) {
 	}
 	// add env vars here I guess
 	result := eval.Eval(ast, env)
-	if result != nil {
+	if replMode && result != nil {
 		fmt.Println(result.Inspect())
 	}
 }

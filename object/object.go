@@ -151,7 +151,7 @@ func (mo *MapObj) Type() ObjectType {
 }
 
 type FunctionObj struct {
-	Params []*ast.Identifier
+	Params []ast.Expr
 	Body   *ast.BlockStmt
 	Env    *Environment
 }

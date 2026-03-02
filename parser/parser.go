@@ -67,6 +67,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.NUMBER, p.parseNumberLiteral)
 	p.registerPrefixFn(token.TRUE, p.parseBooleanLiteral)
 	p.registerPrefixFn(token.FALSE, p.parseBooleanLiteral)
+	p.registerPrefixFn(token.NIL, p.parseNil)
 	p.registerPrefixFn(token.STRING, p.parseStringLiteral)
 	p.registerPrefixFn(token.BANG, p.parsePrefixExpr)
 	p.registerPrefixFn(token.PLUS, p.parsePrefixExpr)
@@ -339,6 +340,10 @@ func (p *Parser) parseStringLiteral() ast.Expr {
 	return &ast.StringLiteral{Token: p.currToken, Value: p.currToken.Literal}
 }
 
+func (p *Parser) parseNil() ast.Expr {
+	return &ast.NilLiteral{Token: p.currToken}
+}
+
 func (p *Parser) parseArrayLiteral() ast.Expr {
 	array := &ast.ArrayLiteral{Token: p.currToken}
 
@@ -442,7 +447,6 @@ func (p *Parser) parseFunctionLiteral() ast.Expr {
 
 	fnLit.Params = p.parseFunctionParams()
 	fnLit.Body = p.parseBlockStmt()
-
 	return fnLit
 }
 
@@ -469,8 +473,8 @@ func (p *Parser) parseExprList(end token.TokenType) []ast.Expr {
 	return list
 }
 
-func (p *Parser) parseFunctionParams() []*ast.Identifier {
-	params := []*ast.Identifier{}
+func (p *Parser) parseFunctionParams() []ast.Expr {
+	params := []ast.Expr{}
 
 	if !p.match(token.LPAREN) {
 		return nil
@@ -480,15 +484,33 @@ func (p *Parser) parseFunctionParams() []*ast.Identifier {
 		p.advance()
 		return params
 	}
-	p.advance()
 
-	param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+	var param ast.Expr
+	switch p.peekToken.Type {
+	case token.IDENT:
+		p.advance()
+		param = &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+	case token.LBRACKET:
+		p.advance()
+		param = p.parseArrayDestructuringExpr()
+	case token.LBRACE:
+		p.advance()
+		param = p.parseMapDestructuringExpr()
+	}
 	params = append(params, param)
 
 	for p.check(token.COMMA) {
 		p.advance()
 		p.advance()
-		param := &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+
+		switch p.currToken.Type {
+		case token.IDENT:
+			param = &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+		case token.LBRACKET:
+			param = p.parseArrayDestructuringExpr()
+		case token.LBRACE:
+			param = p.parseMapDestructuringExpr()
+		}
 		params = append(params, param)
 	}
 
